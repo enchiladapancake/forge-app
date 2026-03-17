@@ -1,0 +1,129 @@
+import { useEffect, useMemo, useState } from 'react';
+import { getTodayKey } from '../utils/progression';
+
+export function SessionModal({ isOpen, onClose, onSubmit, projects, defaultProjectId }) {
+  const initialProject = useMemo(() => defaultProjectId || projects[0]?.id || '', [defaultProjectId, projects]);
+  const [projectId, setProjectId] = useState(initialProject);
+  const [durationMinutes, setDurationMinutes] = useState(30);
+  const [tag, setTag] = useState('');
+  const [note, setNote] = useState('');
+  const [date, setDate] = useState(getTodayKey());
+
+  useEffect(() => {
+    if (isOpen) {
+      setProjectId(initialProject);
+      setDurationMinutes(30);
+      setTag('');
+      setNote('');
+      setDate(getTodayKey());
+    }
+  }, [initialProject, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+
+  if (!isOpen) {
+    return null;
+  }
+
+  const selectedProject = projects.find((project) => project.id === projectId);
+  const availableTags = selectedProject?.tags || [];
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    onSubmit({
+      projectId,
+      durationMinutes: Number(durationMinutes),
+      tag,
+      note,
+      date,
+    });
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-panel" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <div>
+            <h2>Log Session</h2>
+            <p>Capture focused work and turn it into progress.</p>
+          </div>
+          <button className="ghost-button" type="button" onClick={onClose}>
+            Close
+          </button>
+        </div>
+
+        <form className="session-form" onSubmit={handleSubmit}>
+          <label>
+            Project
+            <select value={projectId} onChange={(event) => setProjectId(event.target.value)} required>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Duration (minutes)
+            <input
+              min="1"
+              step="1"
+              type="number"
+              value={durationMinutes}
+              onChange={(event) => setDurationMinutes(event.target.value)}
+              required
+            />
+          </label>
+
+          <label>
+            Tag
+            <input
+              list="project-tags"
+              value={tag}
+              onChange={(event) => setTag(event.target.value)}
+              placeholder="Technique, scripting, lifting..."
+            />
+            <datalist id="project-tags">
+              {availableTags.map((item) => (
+                <option key={item} value={item} />
+              ))}
+            </datalist>
+          </label>
+
+          <label>
+            Note
+            <textarea
+              rows="4"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder="What moved forward in this session?"
+            />
+          </label>
+
+          <label>
+            Date
+            <input type="date" value={date} onChange={(event) => setDate(event.target.value)} required />
+          </label>
+
+          <div className="form-actions">
+            <button className="primary-button" type="submit">
+              Save Session
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

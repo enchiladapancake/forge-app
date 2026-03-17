@@ -1,0 +1,10 @@
+{
+  "name": "The Forge",
+  "short_name": "Forge",
+  "description": "A local-first progression dashboard for leveling up real-life projects.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1020",
+  "theme_color": "#0b1020",
+  "icons": []
+}
