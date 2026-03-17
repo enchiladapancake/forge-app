@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getTodayKey } from '../utils/progression';
 
-export function SessionModal({ isOpen, onClose, onSubmit, projects, defaultProjectId }) {
-  const initialProject = useMemo(() => defaultProjectId || projects[0]?.id || '', [defaultProjectId, projects]);
+export function SessionModal({ isOpen, onClose, onSubmit, projects, defaultProjectId, initialValues }) {
+  const initialProject = useMemo(() => initialValues?.projectId || defaultProjectId || projects[0]?.id || '', [defaultProjectId, initialValues, projects]);
   const [projectId, setProjectId] = useState(initialProject);
   const [durationMinutes, setDurationMinutes] = useState(30);
   const [tag, setTag] = useState('');
@@ -12,12 +12,12 @@ export function SessionModal({ isOpen, onClose, onSubmit, projects, defaultProje
   useEffect(() => {
     if (isOpen) {
       setProjectId(initialProject);
-      setDurationMinutes(30);
-      setTag('');
-      setNote('');
-      setDate(getTodayKey());
+      setDurationMinutes(initialValues?.durationMinutes ?? 30);
+      setTag(initialValues?.tag || '');
+      setNote(initialValues?.note || '');
+      setDate(initialValues?.date || getTodayKey());
     }
-  }, [initialProject, isOpen]);
+  }, [initialProject, initialValues, isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -55,8 +55,8 @@ export function SessionModal({ isOpen, onClose, onSubmit, projects, defaultProje
       <div className="modal-panel" onClick={(event) => event.stopPropagation()}>
         <div className="modal-header">
           <div>
-            <h2>Log Session</h2>
-            <p>Capture focused work and turn it into progress.</p>
+            <h2>{initialValues ? 'Edit Session' : 'Log Session'}</h2>
+            <p>{initialValues ? 'Update the session and all progression will recalculate automatically.' : 'Capture focused work and turn it into progress.'}</p>
           </div>
           <button className="ghost-button" type="button" onClick={onClose}>
             Close
@@ -119,7 +119,7 @@ export function SessionModal({ isOpen, onClose, onSubmit, projects, defaultProje
 
           <div className="form-actions">
             <button className="primary-button" type="submit">
-              Save Session
+              {initialValues ? 'Save Changes' : 'Save Session'}
             </button>
           </div>
         </form>

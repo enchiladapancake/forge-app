@@ -348,7 +348,8 @@ small {
 .note-card,
 .achievement-card,
 .project-card,
-.habit-card {
+.habit-card,
+.tutorial-card {
   border-radius: 18px;
   border: 1px solid var(--border);
   background: rgba(15, 23, 36, 0.72);
@@ -356,7 +357,8 @@ small {
 
 .subpanel,
 .note-card,
-.achievement-card {
+.achievement-card,
+.tutorial-card {
   padding: 16px;
 }
 
@@ -468,6 +470,26 @@ small {
   opacity: 0.7;
 }
 
+.session-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.session-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.session-action-button {
+  padding: 8px 12px;
+  font-size: 0.88rem;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -487,6 +509,31 @@ small {
   padding: 24px;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
   overflow-y: auto;
+}
+
+.tutorial-panel {
+  width: min(860px, 100%);
+}
+
+.tutorial-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.tutorial-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tutorial-card h3 {
+  font-size: 1rem;
+}
+
+.tutorial-card p {
+  color: var(--muted);
 }
 
 .session-form {
@@ -545,7 +592,8 @@ small {
   .topbar,
   .panel-header,
   .list-row,
-  .activity-item {
+  .activity-item,
+  .session-meta-row {
     align-items: flex-start;
     flex-direction: column;
   }

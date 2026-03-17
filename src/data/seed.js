@@ -123,4 +123,5 @@ export const DEFAULT_APP_STATE = {
   sessions: [],
   questClaims: {},
   habitChecks: {},
+  ui: {},
 };

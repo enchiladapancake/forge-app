@@ -84,6 +84,7 @@ const createEmptyProjectStats = () =>
       totalXp: 0,
       totalMinutes: 0,
       sessionCount: 0,
+      allSessions: [],
       recentSessions: [],
       tagsUsed: [],
       lastSessionDate: null,
@@ -242,6 +243,7 @@ export const deriveAppState = (state) => {
     stats.totalMinutes += session.durationMinutes;
     stats.sessionCount += 1;
     stats.lastSessionDate = session.date;
+    stats.allSessions.unshift(session);
     stats.recentSessions.unshift(session);
 
     if (session.tag && !stats.tagsUsed.includes(session.tag)) {
@@ -368,6 +370,15 @@ export const createSessionRecord = ({ projectId, durationMinutes, tag, note, dat
   note: note?.trim() || '',
   date,
   createdAt: new Date().toISOString(),
+});
+
+export const updateSessionRecord = (existingSession, updates) => ({
+  ...existingSession,
+  projectId: updates.projectId,
+  durationMinutes: Number(updates.durationMinutes),
+  tag: updates.tag?.trim() || '',
+  note: updates.note?.trim() || '',
+  date: updates.date,
 });
 
 export const getProjectDefinition = (projectId) => PROJECT_DEFINITIONS.find((project) => project.id === projectId);

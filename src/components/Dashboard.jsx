@@ -40,6 +40,7 @@ export function Dashboard({
   onExportData,
   onImportData,
   onResetProgress,
+  onOpenTutorial,
 }) {
   const latestNote = derived.mostRecentSession?.note?.trim();
 
@@ -88,6 +89,9 @@ export function Dashboard({
               Import Data
               <input type="file" accept="application/json,.json" onChange={onImportData} />
             </label>
+            <button className="ghost-button" type="button" onClick={onOpenTutorial}>
+              How It Works
+            </button>
             <button className="danger-button" type="button" onClick={onResetProgress}>
               Reset Progress
             </button>

@@ -1,7 +1,7 @@
 import { ProgressBar } from './ProgressBar';
 import { formatDisplayDate, getCategoryDefinition } from '../utils/progression';
 
-export function ProjectDetail({ project, stats, onBack, onOpenSessionModal }) {
+export function ProjectDetail({ project, stats, onBack, onOpenSessionModal, onEditSession, onDeleteSession }) {
   const category = getCategoryDefinition(project.categoryId);
 
   return (
@@ -48,12 +48,12 @@ export function ProjectDetail({ project, stats, onBack, onOpenSessionModal }) {
       <section className="dashboard-grid">
         <div className="panel">
           <div className="panel-header">
-            <h2>Recent Session Logs</h2>
-            <p>Latest notes and XP gains.</p>
+            <h2>Session Logs</h2>
+            <p>Review, edit, or remove logged work.</p>
           </div>
           <div className="stack-list">
-            {stats.recentSessions.length ? (
-              stats.recentSessions.map((session) => (
+            {stats.allSessions.length ? (
+              stats.allSessions.map((session) => (
                 <div key={session.id} className="subpanel">
                   <div className="list-row">
                     <div>
@@ -65,7 +65,17 @@ export function ProjectDetail({ project, stats, onBack, onOpenSessionModal }) {
                     <div className="reward-pill">+{session.finalXp} XP</div>
                   </div>
                   <p>{session.note || 'No note added for this session.'}</p>
-                  <small>Streak bonus: +{session.streakBonusPercent}%</small>
+                  <div className="session-meta-row">
+                    <small>Streak bonus: +{session.streakBonusPercent}%</small>
+                    <div className="session-actions">
+                      <button className="ghost-button session-action-button" type="button" onClick={() => onEditSession(session)}>
+                        Edit
+                      </button>
+                      <button className="danger-button session-action-button" type="button" onClick={() => onDeleteSession(session.id)}>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ))
             ) : (

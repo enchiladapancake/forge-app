@@ -3,8 +3,9 @@ import { Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-rou
 import { Dashboard } from './components/Dashboard';
 import { ProjectDetail } from './components/ProjectDetail';
 import { SessionModal } from './components/SessionModal';
+import { TutorialModal } from './components/TutorialModal';
 import { PROJECT_DEFINITIONS } from './data/seed';
-import { createSessionRecord, deriveAppState } from './utils/progression';
+import { createSessionRecord, deriveAppState, updateSessionRecord } from './utils/progression';
 import { createExportPayload, loadState, resetState, saveState, validateImportPayload } from './utils/storage';
 
 function AppLayout({ children }) {
@@ -32,7 +33,7 @@ function DashboardRoute(props) {
   );
 }
 
-function ProjectRoute({ derived, onOpenSessionModal }) {
+function ProjectRoute({ derived, onOpenSessionModal, onEditSession, onDeleteSession }) {
   const navigate = useNavigate();
   const { projectId } = useParams();
   const project = PROJECT_DEFINITIONS.find((entry) => entry.id === projectId);
@@ -48,6 +49,8 @@ function ProjectRoute({ derived, onOpenSessionModal }) {
         stats={derived.projectStats[project.id]}
         onBack={() => navigate('/')}
         onOpenSessionModal={(targetProjectId) => onOpenSessionModal(targetProjectId)}
+        onEditSession={onEditSession}
+        onDeleteSession={onDeleteSession}
       />
     </AppLayout>
   );
@@ -56,20 +59,49 @@ function ProjectRoute({ derived, onOpenSessionModal }) {
 function App() {
   const navigate = useNavigate();
   const [appState, setAppState] = useState(() => loadState());
-  const [sessionModalProjectId, setSessionModalProjectId] = useState(undefined);
+  const [sessionModalState, setSessionModalState] = useState(null);
+  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
 
   useEffect(() => {
     saveState(appState);
   }, [appState]);
 
+  useEffect(() => {
+    if (!appState.ui?.tutorialDismissed) {
+      setIsTutorialOpen(true);
+    }
+  }, [appState.ui]);
+
   const derived = useMemo(() => deriveAppState(appState), [appState]);
 
-  const handleSaveSession = (payload) => {
+  const closeTutorial = () => {
+    setIsTutorialOpen(false);
     setAppState((current) => ({
       ...current,
-      sessions: [...current.sessions, createSessionRecord(payload)],
+      ui: {
+        ...current.ui,
+        tutorialDismissed: true,
+      },
     }));
-    setSessionModalProjectId(undefined);
+  };
+
+  const handleSaveSession = (payload) => {
+    setAppState((current) => {
+      if (sessionModalState?.mode === 'edit' && sessionModalState.sessionId) {
+        return {
+          ...current,
+          sessions: current.sessions.map((session) =>
+            session.id === sessionModalState.sessionId ? updateSessionRecord(session, payload) : session,
+          ),
+        };
+      }
+
+      return {
+        ...current,
+        sessions: [...current.sessions, createSessionRecord(payload)],
+      };
+    });
+    setSessionModalState(null);
   };
 
   const handleClaimQuest = (questId) => {
@@ -148,7 +180,8 @@ function App() {
       }
 
       setAppState(result.state);
-      setSessionModalProjectId(undefined);
+      setSessionModalState(null);
+      setIsTutorialOpen(false);
       navigate('/');
     } catch (error) {
       window.alert('Import failed: could not read this file. Please choose a valid The Forge JSON export.');
@@ -165,8 +198,35 @@ function App() {
     }
 
     setAppState(resetState());
-    setSessionModalProjectId(undefined);
+    setSessionModalState(null);
+    setIsTutorialOpen(true);
     navigate('/');
+  };
+
+  const handleEditSession = (session) => {
+    setSessionModalState({
+      mode: 'edit',
+      sessionId: session.id,
+      initialValues: {
+        projectId: session.projectId,
+        durationMinutes: session.durationMinutes,
+        tag: session.tag,
+        note: session.note,
+        date: session.date,
+      },
+    });
+  };
+
+  const handleDeleteSession = (sessionId) => {
+    const confirmed = window.confirm('Delete this session? This will immediately recalculate XP, levels, streaks, quests, and achievements.');
+    if (!confirmed) {
+      return;
+    }
+
+    setAppState((current) => ({
+      ...current,
+      sessions: current.sessions.filter((session) => session.id !== sessionId),
+    }));
   };
 
   return (
@@ -179,29 +239,40 @@ function App() {
               derived={derived}
               projects={PROJECT_DEFINITIONS}
               onSelectProject={(projectId) => navigate(`/projects/${projectId}`)}
-              onOpenSessionModal={() => setSessionModalProjectId(null)}
+              onOpenSessionModal={() => setSessionModalState({ mode: 'create', defaultProjectId: null, initialValues: null })}
               onClaimQuest={handleClaimQuest}
               onToggleHabit={handleToggleHabit}
               onExportData={handleExportData}
               onImportData={handleImportData}
               onResetProgress={handleResetProgress}
+              onOpenTutorial={() => setIsTutorialOpen(true)}
             />
           }
         />
         <Route
           path="/projects/:projectId"
-          element={<ProjectRoute derived={derived} onOpenSessionModal={(projectId) => setSessionModalProjectId(projectId)} />}
+          element={
+            <ProjectRoute
+              derived={derived}
+              onOpenSessionModal={(projectId) => setSessionModalState({ mode: 'create', defaultProjectId: projectId, initialValues: null })}
+              onEditSession={handleEditSession}
+              onDeleteSession={handleDeleteSession}
+            />
+          }
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
       <SessionModal
-        isOpen={sessionModalProjectId !== undefined}
-        onClose={() => setSessionModalProjectId(undefined)}
+        isOpen={Boolean(sessionModalState)}
+        onClose={() => setSessionModalState(null)}
         onSubmit={handleSaveSession}
         projects={PROJECT_DEFINITIONS}
-        defaultProjectId={sessionModalProjectId}
+        defaultProjectId={sessionModalState?.defaultProjectId}
+        initialValues={sessionModalState?.initialValues}
       />
+
+      <TutorialModal isOpen={isTutorialOpen} onClose={closeTutorial} />
     </>
   );
 }

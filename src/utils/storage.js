@@ -9,6 +9,7 @@ export const normalizeState = (parsed = {}) => ({
   sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
   questClaims: parsed.questClaims && typeof parsed.questClaims === 'object' ? parsed.questClaims : {},
   habitChecks: parsed.habitChecks && typeof parsed.habitChecks === 'object' ? parsed.habitChecks : {},
+  ui: parsed.ui && typeof parsed.ui === 'object' ? parsed.ui : {},
 });
 
 export const loadState = () => {
