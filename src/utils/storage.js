@@ -8,8 +8,24 @@ export const normalizeState = (parsed = {}) => ({
   ...parsed,
   sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
   questClaims: parsed.questClaims && typeof parsed.questClaims === 'object' ? parsed.questClaims : {},
+  weeklyChallengeClaims: parsed.weeklyChallengeClaims && typeof parsed.weeklyChallengeClaims === 'object' ? parsed.weeklyChallengeClaims : {},
+  longTermQuestClaims: parsed.longTermQuestClaims && typeof parsed.longTermQuestClaims === 'object' ? parsed.longTermQuestClaims : {},
+  legendaryQuestClaims: parsed.legendaryQuestClaims && typeof parsed.legendaryQuestClaims === 'object' ? parsed.legendaryQuestClaims : {},
+  milestoneClaims: parsed.milestoneClaims && typeof parsed.milestoneClaims === 'object' ? parsed.milestoneClaims : {},
   habitChecks: parsed.habitChecks && typeof parsed.habitChecks === 'object' ? parsed.habitChecks : {},
+  dailyQuestRerolls: parsed.dailyQuestRerolls && typeof parsed.dailyQuestRerolls === 'object' ? parsed.dailyQuestRerolls : {},
+  dailyQuestOverrides: parsed.dailyQuestOverrides && typeof parsed.dailyQuestOverrides === 'object' ? parsed.dailyQuestOverrides : {},
   ui: parsed.ui && typeof parsed.ui === 'object' ? parsed.ui : {},
+  purchasedPerks: parsed.purchasedPerks && typeof parsed.purchasedPerks === 'object' ? parsed.purchasedPerks : {},
+  weeklyFocus:
+    parsed.weeklyFocus && typeof parsed.weeklyFocus === 'object'
+      ? {
+          primaryCategoryId: parsed.weeklyFocus.primaryCategoryId || '',
+          secondaryCategoryIds: Array.isArray(parsed.weeklyFocus.secondaryCategoryIds)
+            ? parsed.weeklyFocus.secondaryCategoryIds.filter(Boolean).slice(0, 2)
+            : [],
+        }
+      : DEFAULT_APP_STATE.weeklyFocus,
 });
 
 export const loadState = () => {

@@ -4,8 +4,17 @@ import { Dashboard } from './components/Dashboard';
 import { ProjectDetail } from './components/ProjectDetail';
 import { SessionModal } from './components/SessionModal';
 import { TutorialModal } from './components/TutorialModal';
-import { PROJECT_DEFINITIONS } from './data/seed';
-import { createSessionRecord, deriveAppState, updateSessionRecord } from './utils/progression';
+import { PROJECT_DEFINITIONS, QUEST_POOL } from './data/seed';
+import {
+  PERK_DEFINITIONS,
+  createSessionRecord,
+  deriveAppState,
+  getProjectDefinition,
+  getTodayKey,
+  getWeekKey,
+  getWeeklyFocusBonusPercent,
+  updateSessionRecord,
+} from './utils/progression';
 import { createExportPayload, loadState, resetState, saveState, validateImportPayload } from './utils/storage';
 
 function AppLayout({ children }) {
@@ -61,6 +70,7 @@ function App() {
   const [appState, setAppState] = useState(() => loadState());
   const [sessionModalState, setSessionModalState] = useState(null);
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+  const [xpFeedback, setXpFeedback] = useState(null);
 
   useEffect(() => {
     saveState(appState);
@@ -71,6 +81,15 @@ function App() {
       setIsTutorialOpen(true);
     }
   }, [appState.ui]);
+
+  useEffect(() => {
+    if (!xpFeedback) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => setXpFeedback(null), 3200);
+    return () => window.clearTimeout(timeoutId);
+  }, [xpFeedback]);
 
   const derived = useMemo(() => deriveAppState(appState), [appState]);
 
@@ -86,22 +105,73 @@ function App() {
   };
 
   const handleSaveSession = (payload) => {
-    setAppState((current) => {
-      if (sessionModalState?.mode === 'edit' && sessionModalState.sessionId) {
-        return {
-          ...current,
-          sessions: current.sessions.map((session) =>
-            session.id === sessionModalState.sessionId ? updateSessionRecord(session, payload) : session,
-          ),
-        };
-      }
+    const project = getProjectDefinition(payload.projectId);
+    const focusBonusPercent = getWeeklyFocusBonusPercent(project.categoryId, appState.weeklyFocus);
+    let targetSessionId = sessionModalState?.sessionId;
+    let nextState;
 
-      return {
-        ...current,
-        sessions: [...current.sessions, createSessionRecord(payload)],
+    if (sessionModalState?.mode === 'edit' && sessionModalState.sessionId) {
+      nextState = {
+        ...appState,
+        sessions: appState.sessions.map((session) => {
+          if (session.id !== sessionModalState.sessionId) {
+            return session;
+          }
+
+          return updateSessionRecord(session, { ...payload, focusBonusPercent });
+        }),
       };
-    });
+    } else {
+      const newSession = createSessionRecord({ ...payload, focusBonusPercent });
+      targetSessionId = newSession.id;
+      nextState = {
+        ...appState,
+        sessions: [...appState.sessions, newSession],
+      };
+    }
+
+    const nextDerived = deriveAppState(nextState);
+    const nextSession = nextDerived.evaluatedSessions.find((session) => session.id === targetSessionId);
+    const xpDelta = nextDerived.overallXp - derived.overallXp;
+    const bonusNotes = [];
+
+    if (nextSession?.focusBonusPercent) {
+      bonusNotes.push('Focus bonus applied');
+    }
+    if (nextSession?.momentumBonusPercent) {
+      bonusNotes.push('Momentum bonus applied');
+    }
+    if (nextDerived.balanceBonusInfo.events.length > derived.balanceBonusInfo.events.length) {
+      bonusNotes.push('Balanced Week achieved');
+    }
+    if (
+      nextDerived.longTermQuests.filter((quest) => quest.complete).length >
+      derived.longTermQuests.filter((quest) => quest.complete).length
+    ) {
+      bonusNotes.push('Long-term quest completed');
+    }
+    if (
+      nextDerived.legendaryQuests.filter((quest) => quest.complete).length >
+      derived.legendaryQuests.filter((quest) => quest.complete).length
+    ) {
+      bonusNotes.push('Legendary quest advanced to completion');
+    }
+    if (
+      nextDerived.milestoneHighlights.filter((milestone) => !milestone.claimed).length >
+      derived.milestoneHighlights.filter((milestone) => !milestone.claimed).length
+    ) {
+      bonusNotes.push('New milestone ready');
+    }
+    if (nextDerived.buildIdentity.name !== derived.buildIdentity.name) {
+      bonusNotes.push(`Build shifted to ${nextDerived.buildIdentity.name}`);
+    }
+
+    setAppState(nextState);
     setSessionModalState(null);
+    setXpFeedback({
+      label: `${xpDelta >= 0 ? '+' : ''}${xpDelta} XP`,
+      note: bonusNotes.length ? bonusNotes.join(' | ') : sessionModalState?.mode === 'edit' ? 'Session updated' : 'Session recorded',
+    });
   };
 
   const handleClaimQuest = (questId) => {
@@ -120,6 +190,142 @@ function App() {
         },
       },
     }));
+    setXpFeedback({
+      label: `+${targetQuest.rewardXp} XP | +${targetQuest.rewardPoints} FP`,
+      note: `Daily quest completed: ${targetQuest.title}`,
+    });
+  };
+
+  const handleClaimWeeklyChallenge = (challengeId) => {
+    const challenge = derived.weeklyChallenges.find((entry) => entry.id === challengeId);
+    const weekKey = getWeekKey();
+    if (!challenge || !challenge.complete || challenge.claimed) {
+      return;
+    }
+
+    setAppState((current) => ({
+      ...current,
+      weeklyChallengeClaims: {
+        ...current.weeklyChallengeClaims,
+        [weekKey]: {
+          ...(current.weeklyChallengeClaims[weekKey] || {}),
+          [challengeId]: new Date().toISOString(),
+        },
+      },
+    }));
+    setXpFeedback({
+      label: `+${challenge.rewardXp} XP | +${challenge.rewardPoints} FP`,
+      note: `Weekly challenge cleared: ${challenge.title}`,
+    });
+  };
+
+  const handleClaimLongTermQuest = (questId) => {
+    const quest = derived.longTermQuests.find((entry) => entry.id === questId);
+    if (!quest || !quest.complete || quest.claimed) {
+      return;
+    }
+
+    setAppState((current) => ({
+      ...current,
+      longTermQuestClaims: {
+        ...current.longTermQuestClaims,
+        [questId]: new Date().toISOString(),
+      },
+    }));
+    setXpFeedback({
+      label: `+${quest.rewardXp} XP | +${quest.rewardPoints} FP`,
+      note: `Long-term quest completed: ${quest.title}`,
+    });
+  };
+
+  const handleClaimLegendaryQuest = (questId) => {
+    const quest = derived.legendaryQuests.find((entry) => entry.id === questId);
+    if (!quest || !quest.complete || quest.claimed) {
+      return;
+    }
+
+    setAppState((current) => ({
+      ...current,
+      legendaryQuestClaims: {
+        ...current.legendaryQuestClaims,
+        [questId]: new Date().toISOString(),
+      },
+    }));
+    setXpFeedback({
+      label: `+${quest.rewardXp} XP | +${quest.rewardPoints} FP`,
+      note: `Legendary quest completed: ${quest.title}`,
+    });
+  };
+
+  const handleClaimMilestone = (milestoneId) => {
+    const milestone = derived.milestoneHighlights.find((entry) => entry.id === milestoneId);
+    if (!milestone || milestone.claimed) {
+      return;
+    }
+
+    setAppState((current) => ({
+      ...current,
+      milestoneClaims: {
+        ...current.milestoneClaims,
+        [milestoneId]: new Date().toISOString(),
+      },
+    }));
+    setXpFeedback({
+      label: `+200 XP | +${milestone.rewardPoints} FP`,
+      note: `Milestone claimed: ${milestone.title}`,
+    });
+  };
+
+  const handlePurchasePerk = (perkId) => {
+    const perk = PERK_DEFINITIONS.find((entry) => entry.id === perkId);
+    if (!perk || derived.forgePoints < perk.cost || appState.purchasedPerks?.[perkId]) {
+      return;
+    }
+
+    setAppState((current) => ({
+      ...current,
+      purchasedPerks: {
+        ...current.purchasedPerks,
+        [perkId]: new Date().toISOString(),
+      },
+    }));
+    setXpFeedback({
+      label: `-${perk.cost} FP`,
+      note: `Perk unlocked: ${perk.title}`,
+    });
+  };
+
+  const handleRerollDailyQuest = (slotIndex) => {
+    const todayKey = getTodayKey();
+    if (derived.dailyQuestRerollInfo.rerollsUsed >= derived.dailyQuestRerollInfo.rerollLimit) {
+      return;
+    }
+
+    const currentQuestIds = derived.dailyQuests.map((quest) => quest.id);
+    const currentQuestId = derived.dailyQuests.find((quest) => quest.slotIndex === slotIndex)?.id;
+    const replacement = QUEST_POOL.find((quest) => !currentQuestIds.includes(quest.id) && quest.id !== currentQuestId);
+    if (!replacement) {
+      return;
+    }
+
+    setAppState((current) => ({
+      ...current,
+      dailyQuestRerolls: {
+        ...current.dailyQuestRerolls,
+        [todayKey]: (current.dailyQuestRerolls?.[todayKey] || 0) + 1,
+      },
+      dailyQuestOverrides: {
+        ...current.dailyQuestOverrides,
+        [todayKey]: {
+          ...(current.dailyQuestOverrides?.[todayKey] || {}),
+          [slotIndex]: replacement.id,
+        },
+      },
+    }));
+    setXpFeedback({
+      label: 'Quest rerolled',
+      note: `New daily quest: ${replacement.title}`,
+    });
   };
 
   const handleToggleHabit = (habitId) => {
@@ -140,6 +346,13 @@ function App() {
         },
       };
     });
+    const habit = derived.habitsToday.find((entry) => entry.id === habitId);
+    if (habit && !habit.checked) {
+      setXpFeedback({
+        label: `+${habit.rewardXp} XP`,
+        note: `Habit completed: ${habit.name}`,
+      });
+    }
   };
 
   const handleExportData = () => {
@@ -223,9 +436,32 @@ function App() {
       return;
     }
 
+    const nextState = {
+      ...appState,
+      sessions: appState.sessions.filter((session) => session.id !== sessionId),
+    };
+    const nextDerived = deriveAppState(nextState);
+    const xpDelta = nextDerived.overallXp - derived.overallXp;
+    setAppState(nextState);
+    setXpFeedback({
+      label: `${xpDelta >= 0 ? '+' : ''}${xpDelta} XP`,
+      note: 'Session removed and progression recalculated',
+    });
+  };
+
+  const handleWeeklyFocusChange = (nextFocus) => {
+    const uniqueSecondaryIds = [...new Set((nextFocus.secondaryCategoryIds || []).filter(Boolean))].slice(0, 2);
+
+    if (nextFocus.primaryCategoryId && uniqueSecondaryIds.includes(nextFocus.primaryCategoryId)) {
+      return;
+    }
+
     setAppState((current) => ({
       ...current,
-      sessions: current.sessions.filter((session) => session.id !== sessionId),
+      weeklyFocus: {
+        primaryCategoryId: nextFocus.primaryCategoryId || '',
+        secondaryCategoryIds: uniqueSecondaryIds,
+      },
     }));
   };
 
@@ -241,11 +477,20 @@ function App() {
               onSelectProject={(projectId) => navigate(`/projects/${projectId}`)}
               onOpenSessionModal={() => setSessionModalState({ mode: 'create', defaultProjectId: null, initialValues: null })}
               onClaimQuest={handleClaimQuest}
+              onClaimWeeklyChallenge={handleClaimWeeklyChallenge}
+              onClaimLongTermQuest={handleClaimLongTermQuest}
+              onClaimLegendaryQuest={handleClaimLegendaryQuest}
+              onClaimMilestone={handleClaimMilestone}
               onToggleHabit={handleToggleHabit}
               onExportData={handleExportData}
               onImportData={handleImportData}
               onResetProgress={handleResetProgress}
               onOpenTutorial={() => setIsTutorialOpen(true)}
+              weeklyFocus={appState.weeklyFocus}
+              onWeeklyFocusChange={handleWeeklyFocusChange}
+              onPurchasePerk={handlePurchasePerk}
+              onRerollDailyQuest={handleRerollDailyQuest}
+              xpFeedback={xpFeedback}
             />
           }
         />
