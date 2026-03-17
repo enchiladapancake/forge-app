@@ -338,10 +338,44 @@ small {
 .stack-list,
 .category-list,
 .activity-list,
-.achievement-list {
+.achievement-list,
+.category-legend {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.radar-chart-wrap {
+  width: 100%;
+  height: 320px;
+}
+
+.category-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 36, 0.48);
+  color: var(--text);
+}
+
+.legend-item small {
+  margin-left: auto;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex: 0 0 auto;
 }
 
 .subpanel,
@@ -547,6 +581,54 @@ small {
   color: var(--muted);
 }
 
+.project-picker {
+  display: grid;
+  gap: 14px;
+}
+
+.project-group {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 36, 0.56);
+}
+
+.project-group__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+}
+
+.project-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.project-chip {
+  border: 1px solid var(--project-accent);
+  background: rgba(15, 23, 36, 0.92);
+  color: #eef2ff;
+  border-radius: 999px;
+  padding: 10px 14px;
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+  opacity: 0.84;
+}
+
+.project-chip:hover {
+  transform: translateY(-1px);
+}
+
+.project-chip--selected {
+  border-color: var(--project-accent);
+  background: rgba(30, 41, 59, 0.95);
+  box-shadow: inset 0 0 0 1px var(--project-accent), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  opacity: 1;
+}
+
 .session-form input,
 .session-form select,
 .session-form textarea {
@@ -584,6 +666,10 @@ small {
   .detail-hero {
     padding: 18px;
     border-radius: 20px;
+  }
+
+  .radar-chart-wrap {
+    height: 280px;
   }
 
   .detail-hero__content,

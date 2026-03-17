@@ -1,4 +1,5 @@
 import { ProgressBar } from './ProgressBar';
+import { CategoryRadarChart } from './CategoryRadarChart';
 import { formatDisplayDate, getCategoryDefinition } from '../utils/progression';
 
 function QuestCard({ quest, onClaim }) {
@@ -103,6 +104,23 @@ export function Dashboard({
       </section>
 
       <section className="dashboard-grid">
+        <div className="panel">
+          <div className="panel-header">
+            <h2>Category Balance</h2>
+            <p>A quick view of how your progress is distributed across life domains.</p>
+          </div>
+          <CategoryRadarChart categories={derived.categoryStats} />
+          <div className="category-legend">
+            {derived.categoryStats.map((category) => (
+              <div key={category.id} className="legend-item">
+                <span className="legend-dot" style={{ backgroundColor: category.color }} />
+                <span>{category.name}</span>
+                <small>Lvl {category.levelInfo.level}</small>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="panel">
           <div className="panel-header">
             <h2>Category Summary</h2>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { CATEGORY_DEFINITIONS } from '../data/seed';
 import { getTodayKey } from '../utils/progression';
 
 export function SessionModal({ isOpen, onClose, onSubmit, projects, defaultProjectId, initialValues }) {
@@ -38,6 +39,10 @@ export function SessionModal({ isOpen, onClose, onSubmit, projects, defaultProje
 
   const selectedProject = projects.find((project) => project.id === projectId);
   const availableTags = selectedProject?.tags || [];
+  const projectsByCategory = CATEGORY_DEFINITIONS.map((category) => ({
+    ...category,
+    projects: projects.filter((project) => project.categoryId === category.id),
+  }));
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -66,13 +71,35 @@ export function SessionModal({ isOpen, onClose, onSubmit, projects, defaultProje
         <form className="session-form" onSubmit={handleSubmit}>
           <label>
             Project
-            <select value={projectId} onChange={(event) => setProjectId(event.target.value)} required>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
+            <div className="project-picker">
+              {projectsByCategory.map((category) => (
+                <div key={category.id} className="project-group">
+                  <div className="project-group__header">
+                    <span className="legend-dot" style={{ backgroundColor: category.color }} />
+                    <strong>{category.name}</strong>
+                  </div>
+                  <div className="project-chip-grid">
+                    {category.projects.map((project) => {
+                      const isSelected = project.id === projectId;
+
+                      return (
+                        <button
+                          key={project.id}
+                          className={`project-chip ${isSelected ? 'project-chip--selected' : ''}`}
+                          style={{
+                            '--project-accent': category.color,
+                          }}
+                          type="button"
+                          onClick={() => setProjectId(project.id)}
+                        >
+                          {project.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               ))}
-            </select>
+            </div>
           </label>
 
           <label>
