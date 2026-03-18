@@ -17,8 +17,12 @@ export function TutorialModal({ isOpen, onClose }) {
       body: 'The Forge now supports starter presets. The current Mylo setup is preserved as a first-class built-in template, and new users can begin from that, Student, Balanced Growth, Creative, Fitness / Discipline, or a Blank setup.',
     },
     {
+      title: 'Safe Preset Switching',
+      body: 'Preset switching is now protected. When you switch, The Forge creates a local snapshot first and lets you choose whether to preserve compatible progress, start fresh on the new preset, or duplicate your current setup as a custom preset before switching.',
+    },
+    {
       title: 'Profile and Structure',
-      body: 'Your save now separates progression from structure. Sessions, XP, quests, perks, and rewards stay in save data, while categories, projects, habits, preset origin, and display profile details live in a local profile config.',
+      body: 'Your save now separates progression from structure. Sessions, XP, quests, perks, and rewards stay in save data, while categories, projects, habits, preset origin, archived structure, and display profile details live in a local profile config.',
     },
     {
       title: 'Installable App Mode',
@@ -66,7 +70,7 @@ export function TutorialModal({ isOpen, onClose }) {
     },
     {
       title: 'Settings and Local Save Data',
-      body: 'Everything stays local to this device. Settings now includes Export Data, Import Data, Reset Progress, Help, confirmation preferences, Road behavior preferences, quest-tier layout preferences, preset visibility, and full category/project/habit management.',
+      body: 'Everything stays local to this device. Settings now includes Export Data, Import Data, Reset Progress, Help, confirmation preferences, Road behavior preferences, quest-tier layout preferences, preset switching with snapshot restore, and full category/project/habit management.',
     },
     {
       title: 'First-Run Setup',

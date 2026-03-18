@@ -1,8 +1,12 @@
-import { DEFAULT_APP_STATE, createFreshAppState, createLegacyMyloProfile, createProfileFromPreset, getPresetById, syncCategoryProjectIds } from '../data/seed';
+import { BUILT_IN_PRESETS, DEFAULT_APP_STATE, createFreshAppState, createLegacyMyloProfile, createProfileFromPreset, getPresetById, syncCategoryProjectIds } from '../data/seed';
 
 export const STORAGE_KEY = 'the-forge-state';
 const EXPORT_VERSION = 1;
 const hasBrowserStorage = () => typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+const resolvePresetName = (presetId, customPresets = [], fallbackName = '') =>
+  customPresets.find((preset) => preset.id === presetId)?.name ||
+  BUILT_IN_PRESETS.find((preset) => preset.id === presetId)?.name ||
+  fallbackName;
 
 export const normalizeState = (parsed = {}) => ({
   ...createFreshAppState(),
@@ -24,7 +28,7 @@ export const normalizeState = (parsed = {}) => ({
         : {
             ...createProfileFromPreset(parsed.profile.presetId || getPresetById('mylo-personal').id),
             ...parsed.profile,
-            presetName: getPresetById(parsed.profile.presetId || 'mylo-personal').name,
+            presetName: resolvePresetName(parsed.profile.presetId || 'mylo-personal', Array.isArray(parsed.customPresets) ? parsed.customPresets : [], parsed.profile.presetName),
             projects: Array.isArray(parsed.profile.projects) ? parsed.profile.projects : [],
             categories: syncCategoryProjectIds(
               Array.isArray(parsed.profile.categories) ? parsed.profile.categories : [],
@@ -35,6 +39,8 @@ export const normalizeState = (parsed = {}) => ({
             updatedAt: new Date().toISOString(),
           }
       : createLegacyMyloProfile(),
+  customPresets: Array.isArray(parsed.customPresets) ? parsed.customPresets : [],
+  presetSnapshots: Array.isArray(parsed.presetSnapshots) ? parsed.presetSnapshots : [],
   sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
   questClaims: parsed.questClaims && typeof parsed.questClaims === 'object' ? parsed.questClaims : {},
   weeklyChallengeClaims: parsed.weeklyChallengeClaims && typeof parsed.weeklyChallengeClaims === 'object' ? parsed.weeklyChallengeClaims : {},

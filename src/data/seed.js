@@ -176,14 +176,14 @@ export const syncCategoryProjectIds = (categories, projects) =>
   }));
 
 export const createProfileFromPreset = (presetId, overrides = {}) => {
-  const preset = getPresetById(presetId);
+  const preset = overrides.preset || getPresetById(presetId);
   const categories = clone(overrides.categories || preset.categories);
   const projects = clone(overrides.projects || preset.projects);
   const habits = clone(overrides.habits || preset.habits);
 
   return {
     isConfigured: true,
-    presetId: preset.id,
+    presetId: overrides.presetId || preset.id,
     presetName: preset.name,
     displayName: overrides.displayName || preset.profileName,
     levelLabel: overrides.levelLabel || preset.levelLabel,
@@ -194,6 +194,19 @@ export const createProfileFromPreset = (presetId, overrides = {}) => {
     updatedAt: new Date().toISOString(),
   };
 };
+
+export const createCustomPresetFromProfile = (profile, name) => ({
+  id: `custom-${Date.now()}`,
+  name: name?.trim() || `${profile?.displayName || 'Custom'} Setup`,
+  description: `Custom preset based on ${profile?.presetName || 'your current setup'}.`,
+  profileName: profile?.displayName || 'Custom Forge',
+  levelLabel: profile?.levelLabel || 'Forge Level',
+  categories: clone(profile?.categories || []),
+  projects: clone(profile?.projects || []),
+  habits: clone(profile?.habits || []),
+  starterPreferences: {},
+  isCustom: true,
+});
 
 export const createLegacyMyloProfile = () =>
   createProfileFromPreset('mylo-personal', {
@@ -229,6 +242,8 @@ export const createFreshAppState = () => ({
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
+  customPresets: [],
+  presetSnapshots: [],
   sessions: [],
   questClaims: {},
   weeklyChallengeClaims: {},

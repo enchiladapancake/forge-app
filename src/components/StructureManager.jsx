@@ -19,7 +19,10 @@ function PresetCard({ preset, isCurrent, onSelect, disabled }) {
     <button className={`preset-card ${isCurrent ? 'preset-card--current' : ''}`} type="button" onClick={() => onSelect?.(preset.id)} disabled={disabled}>
       <div className="preset-card__top">
         <strong>{preset.name}</strong>
-        {isCurrent ? <span className="status-pill status-pill--ready">Current</span> : null}
+        <div className="inline-actions">
+          <span className={`status-pill ${preset.isCustom ? '' : 'status-pill--ready'}`}>{preset.isCustom ? 'Custom' : 'Built-in'}</span>
+          {isCurrent ? <span className="status-pill status-pill--ready">Current</span> : null}
+        </div>
       </div>
       <p>{preset.description}</p>
       <div className="preset-card__stats">
@@ -28,6 +31,53 @@ function PresetCard({ preset, isCurrent, onSelect, disabled }) {
         <span>{preset.habits.length} habits</span>
       </div>
     </button>
+  );
+}
+
+function PresetSwitchModal({ isOpen, preset, onClose, onPreserve, onFresh, onDuplicateAndSwitch }) {
+  if (!isOpen || !preset) {
+    return null;
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-panel tutorial-panel" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <div>
+            <p className="eyebrow">Switch Preset</p>
+            <h2>Move to {preset.name}</h2>
+            <p>This changes the account structure. The Forge will protect the current save with a local snapshot before applying the switch.</p>
+          </div>
+          <button className="ghost-button" type="button" onClick={onClose}>
+            Cancel
+          </button>
+        </div>
+
+        <div className="tutorial-grid">
+          <div className="tutorial-card">
+            <h3>Preserve compatible progress</h3>
+            <p>Keep sessions, perks, quests, and rewards where the new preset still has matching categories, projects, or habits. Non-matching structure is archived in a recovery snapshot.</p>
+            <button className="secondary-button" type="button" onClick={onPreserve}>
+              Preserve Progress
+            </button>
+          </div>
+          <div className="tutorial-card">
+            <h3>Start fresh on the new preset</h3>
+            <p>Switch to the new preset and reset progression to a clean account while still saving a full local snapshot of the current version first.</p>
+            <button className="secondary-button" type="button" onClick={onFresh}>
+              Start Fresh
+            </button>
+          </div>
+          <div className="tutorial-card">
+            <h3>Duplicate current setup, then switch</h3>
+            <p>Create a reusable custom preset from the current structure first, then switch while preserving compatible progress. This is the safest custom-backup option if you may want this exact setup again later.</p>
+            <button className="secondary-button" type="button" onClick={onDuplicateAndSwitch}>
+              Duplicate and Switch
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -288,24 +338,81 @@ function HabitManager({ habits, onUpdate, onCreate, onDelete, onToggleEnabled })
   );
 }
 
-export function PresetTemplatePanel({ presets, currentPresetId }) {
+export function PresetTemplatePanel({ profile, presets, currentPresetId, snapshots, onSwitchPreset, onRestoreSnapshot, onDuplicateCurrentPreset }) {
+  const [selectedPresetId, setSelectedPresetId] = useState(null);
+  const selectedPreset = presets.find((preset) => preset.id === selectedPresetId) || null;
+  const archivedCategoryCount = profile?.archivedCategories?.length || 0;
+  const archivedProjectCount = profile?.archivedProjects?.length || 0;
+  const archivedHabitCount = profile?.archivedHabits?.length || 0;
+
   return (
     <div className="structure-block">
       <div className="panel-header">
         <div>
           <h2>Preset and Setup</h2>
-          <p>The current account is now backed by a setup preset. The Mylo setup stays preserved as a first-class built-in template.</p>
+          <p>The current account is backed by a setup preset. Mylo stays preserved as a first-class built-in template, and choosing another preset opens the protected switch flow.</p>
         </div>
+        <button className="ghost-button" type="button" onClick={onDuplicateCurrentPreset}>
+          Duplicate Current as Custom
+        </button>
+      </div>
+      <div className="subpanel subpanel--compact">
+        <strong>Current preset</strong>
+        <p>Click any other preset card to open the safe switching options. The current preset stays clearly marked and cannot be switched to again.</p>
       </div>
       <div className="preset-grid">
         {presets.map((preset) => (
-          <PresetCard key={preset.id} preset={preset} isCurrent={preset.id === currentPresetId} disabled />
+          <div key={preset.id} className="structure-block">
+            <PresetCard
+              preset={preset}
+              isCurrent={preset.id === currentPresetId}
+              onSelect={setSelectedPresetId}
+              disabled={preset.id === currentPresetId}
+            />
+            {preset.id !== currentPresetId ? <p className="structure-card__meta">Opens safe switch options</p> : <p className="structure-card__meta">Currently active</p>}
+          </div>
         ))}
       </div>
       <div className="subpanel subpanel--compact">
-        <strong>Why preset switching is locked for now</strong>
-        <p>The current structure can be customized safely in-place. Full preset swapping is intentionally view-only until it can guarantee no accidental data loss.</p>
+        <strong>Snapshot protection</strong>
+        <p>Every preset switch creates a local snapshot first. You can restore a previous account state later if you need to roll back.</p>
       </div>
+      {archivedCategoryCount || archivedProjectCount || archivedHabitCount ? (
+        <div className="subpanel subpanel--compact">
+          <strong>Preserved from previous presets</strong>
+          <p>{archivedCategoryCount} archived categories | {archivedProjectCount} archived projects | {archivedHabitCount} archived habits</p>
+        </div>
+      ) : null}
+      {snapshots?.length ? (
+        <div className="stack-list">
+          {snapshots.slice(0, 4).map((snapshot) => (
+            <div key={snapshot.id} className="subpanel subpanel--compact">
+              <strong>{snapshot.label}</strong>
+              <p>{new Date(snapshot.createdAt).toLocaleString()}</p>
+              <button className="ghost-button session-action-button" type="button" onClick={() => onRestoreSnapshot(snapshot.id)}>
+                Restore Snapshot
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <PresetSwitchModal
+        isOpen={Boolean(selectedPreset)}
+        preset={selectedPreset}
+        onClose={() => setSelectedPresetId(null)}
+        onPreserve={() => {
+          onSwitchPreset(selectedPreset.id, 'preserve');
+          setSelectedPresetId(null);
+        }}
+        onFresh={() => {
+          onSwitchPreset(selectedPreset.id, 'fresh');
+          setSelectedPresetId(null);
+        }}
+        onDuplicateAndSwitch={() => {
+          onSwitchPreset(selectedPreset.id, 'duplicate-and-switch');
+          setSelectedPresetId(null);
+        }}
+      />
     </div>
   );
 }

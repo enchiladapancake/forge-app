@@ -799,6 +799,7 @@ export function SettingsPage({
   uiState,
   profile,
   presets,
+  snapshots,
   onExportData,
   onImportData,
   onOpenTutorial,
@@ -815,13 +816,24 @@ export function SettingsPage({
   onCreateHabit,
   onDeleteHabit,
   onToggleHabitEnabled,
+  onSwitchPreset,
+  onRestoreSnapshot,
+  onDuplicateCurrentPreset,
 }) {
   return (
     <div className="page">
       <PageHeader eyebrow="Settings" title="Settings and Local Controls" body="Everything in The Forge stays local. This page now covers setup presets, structure customization, backups, reset, help, and local UX preferences." />
       <section className="settings-layout">
         <div className="panel panel--soft settings-panel settings-panel--secondary">
-          <PresetTemplatePanel presets={presets} currentPresetId={profile?.presetId} />
+          <PresetTemplatePanel
+            profile={profile}
+            presets={presets}
+            currentPresetId={profile?.presetId}
+            snapshots={snapshots}
+            onSwitchPreset={onSwitchPreset}
+            onRestoreSnapshot={onRestoreSnapshot}
+            onDuplicateCurrentPreset={onDuplicateCurrentPreset}
+          />
         </div>
       </section>
       <section className="settings-layout">

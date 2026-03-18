@@ -5,7 +5,7 @@ import { ProjectDetail } from './components/ProjectDetail';
 import { SessionModal } from './components/SessionModal';
 import { SetupWizardModal } from './components/StructureManager';
 import { TutorialModal } from './components/TutorialModal';
-import { BUILT_IN_PRESETS, syncCategoryProjectIds } from './data/seed';
+import { BUILT_IN_PRESETS, createCustomPresetFromProfile, createFreshAppState, createProfileFromPreset, getPresetById, syncCategoryProjectIds } from './data/seed';
 import {
   PERK_DEFINITIONS,
   createSessionRecord,
@@ -172,6 +172,38 @@ function App() {
   const currentProjects = derived.structure?.projects || [];
   const currentCategories = derived.structure?.categories || [];
   const currentHabits = appState.profile?.habits || [];
+  const availablePresets = [...BUILT_IN_PRESETS, ...(appState.customPresets || [])];
+  const dedupeById = (items = []) =>
+    items.filter((item, index, array) => item?.id && array.findIndex((entry) => entry?.id === item.id) === index);
+  const createStateSnapshot = (current, label) => ({
+    id: crypto.randomUUID(),
+    label,
+    createdAt: new Date().toISOString(),
+    state: {
+      ...current,
+      presetSnapshots: [],
+    },
+  });
+  const buildArchivedStructure = (currentProfile, nextProfile) => {
+    const nextCategoryIds = new Set((nextProfile.categories || []).map((category) => category.id));
+    const nextProjectIds = new Set((nextProfile.projects || []).map((project) => project.id));
+    const nextHabitIds = new Set((nextProfile.habits || []).map((habit) => habit.id));
+
+    return {
+      archivedCategories: dedupeById([
+        ...(currentProfile?.archivedCategories || []),
+        ...((currentProfile?.categories || []).filter((category) => !nextCategoryIds.has(category.id))),
+      ]),
+      archivedProjects: dedupeById([
+        ...(currentProfile?.archivedProjects || []),
+        ...((currentProfile?.projects || []).filter((project) => !nextProjectIds.has(project.id))),
+      ]),
+      archivedHabits: dedupeById([
+        ...(currentProfile?.archivedHabits || []),
+        ...((currentProfile?.habits || []).filter((habit) => !nextHabitIds.has(habit.id))),
+      ]),
+    };
+  };
   const updateProfile = (updater) => {
     setAppState((current) => {
       const nextProfile = updater(current.profile);
@@ -326,6 +358,111 @@ function App() {
     }));
     setIsTutorialOpen(true);
     navigate('/');
+  };
+
+  const handleDuplicateCurrentPreset = () => {
+    const customPreset = createCustomPresetFromProfile(appState.profile, `${appState.profile?.displayName || 'Current'} Custom Preset`);
+    setAppState((current) => ({
+      ...current,
+      customPresets: [customPreset, ...(current.customPresets || [])],
+    }));
+    pushFeedback('Custom preset saved', `${customPreset.name} is now available in Preset and Setup.`);
+  };
+
+  const handleRestoreSnapshot = (snapshotId) => {
+    const snapshot = (appState.presetSnapshots || []).find((entry) => entry.id === snapshotId);
+    if (!snapshot) {
+      return;
+    }
+
+    const confirmed = appState.ui?.confirmDestructiveActions
+      ? window.confirm('Restoring this snapshot will replace the current local state with the saved backup. Continue?')
+      : true;
+    if (!confirmed) {
+      return;
+    }
+
+    setAppState(snapshot.state);
+    setSessionModalState(null);
+    navigate('/');
+  };
+
+  const handleSwitchPreset = (presetId, strategy) => {
+    const targetPreset = availablePresets.find((preset) => preset.id === presetId) || getPresetById(presetId);
+    if (!targetPreset || targetPreset.id === appState.profile?.presetId) {
+      return;
+    }
+
+    setAppState((current) => {
+      const snapshot = createStateSnapshot(current, `${current.profile?.presetName || 'Current Setup'} before switching to ${targetPreset.name}`);
+      const snapshots = [snapshot, ...(current.presetSnapshots || [])].slice(0, 10);
+      const targetProfile = createProfileFromPreset(targetPreset.id, {
+        preset: targetPreset,
+        presetId: targetPreset.id,
+        categories: targetPreset.categories,
+        projects: targetPreset.projects,
+        habits: targetPreset.habits,
+        displayName: current.profile?.displayName || targetPreset.profileName,
+        levelLabel: targetPreset.levelLabel,
+      });
+
+      const nextProfile = {
+        ...targetProfile,
+        displayName: current.profile?.displayName || targetProfile.displayName,
+        presetName: targetPreset.name,
+      };
+      const archivedStructure = buildArchivedStructure(current.profile, nextProfile);
+
+      if (strategy === 'fresh') {
+        const fresh = createFreshAppState();
+        return {
+          ...fresh,
+          profile: {
+            ...nextProfile,
+            archivedCategories: [],
+            archivedProjects: [],
+            archivedHabits: [],
+          },
+          ui: {
+            ...fresh.ui,
+            ...current.ui,
+          },
+          customPresets: current.customPresets || [],
+          presetSnapshots: snapshots,
+        };
+      }
+
+      const nextCustomPresets =
+        strategy === 'duplicate-and-switch'
+          ? [createCustomPresetFromProfile(current.profile, `${current.profile?.displayName || 'Current'} Preset Copy`), ...(current.customPresets || [])]
+          : current.customPresets || [];
+
+      return {
+        ...current,
+        profile: {
+          ...nextProfile,
+          ...archivedStructure,
+        },
+        customPresets: nextCustomPresets,
+        presetSnapshots: snapshots,
+        weeklyFocus: {
+          primaryCategoryId:
+            nextProfile.categories.some((category) => category.id === current.weeklyFocus?.primaryCategoryId) ? current.weeklyFocus.primaryCategoryId : '',
+          secondaryCategoryIds: (current.weeklyFocus?.secondaryCategoryIds || []).filter((categoryId) =>
+            nextProfile.categories.some((category) => category.id === categoryId)),
+        },
+      };
+    });
+
+    pushFeedback(
+      strategy === 'fresh' ? 'Preset switched fresh' : 'Preset switched safely',
+      strategy === 'duplicate-and-switch'
+        ? `${targetPreset.name} is now active, and the previous structure was duplicated as a custom preset.`
+        : strategy === 'fresh'
+          ? `${targetPreset.name} is now active on a fresh progression state. A local snapshot was saved first.`
+          : `${targetPreset.name} is now active. Compatible progress was preserved, and a local snapshot was saved first.`,
+    );
+    navigate('/settings');
   };
 
   const handleUpdateCategory = (categoryId, patch) => {
@@ -1052,7 +1189,8 @@ function App() {
               <SettingsPage
                 uiState={appState.ui}
                 profile={appState.profile}
-                presets={BUILT_IN_PRESETS}
+                presets={availablePresets}
+                snapshots={appState.presetSnapshots}
                 onExportData={handleExportData}
                 onImportData={handleImportData}
                 onResetProgress={handleResetProgress}
@@ -1069,6 +1207,9 @@ function App() {
                 onCreateHabit={handleCreateHabit}
                 onDeleteHabit={handleDeleteHabit}
                 onToggleHabitEnabled={handleToggleHabitEnabled}
+                onSwitchPreset={handleSwitchPreset}
+                onRestoreSnapshot={handleRestoreSnapshot}
+                onDuplicateCurrentPreset={handleDuplicateCurrentPreset}
               />
             </AppLayout>
           }
