@@ -1,18 +1,21 @@
 {
   "name": "The Forge",
   "short_name": "Forge",
+  "id": "/",
   "description": "A local-first progression dashboard for leveling up real-life projects.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#0b1020",
   "theme_color": "#0b1020",
+  "categories": ["productivity", "education", "lifestyle"],
   "icons": [
     {
       "src": "/forge-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
   ]
 }

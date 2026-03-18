@@ -25,6 +25,7 @@ The Forge is a fully local MVP productivity RPG built with React and Vite. It tu
 ### Notes
 
 - The app is fully local-first and stores progress in the browser's `localStorage`, so each browser/device keeps its own save unless the user uses Export/Import.
+- The app now includes a lightweight service worker and installable web-app manifest, so after deployment on HTTPS you can install it from supported browsers.
 - If you deploy under a subpath instead of the site root, update the Vite base path in `vite.config.js` before deploying.
 - Node.js 18+ is the intended runtime for local install/build.
 

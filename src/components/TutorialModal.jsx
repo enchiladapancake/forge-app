@@ -13,6 +13,10 @@ export function TutorialModal({ isOpen, onClose }) {
       body: 'Use Dashboard for the current overview, The Road for the best next action, Daily Road for a full optimized plan for the day, Quest Journal for all quest tiers, Projects for categories and timelines, Progress for stats and profile insight, Perks for the Forge Points economy, and Settings for help and local preferences.',
     },
     {
+      title: 'Installable App Mode',
+      body: 'The Forge now has an installable web-app foundation. On supported browsers you can add it to your home screen or install it from the browser menu, then open it in a cleaner standalone app shell while keeping the same local-first save behavior.',
+    },
+    {
       title: 'The Road',
       body: 'The Road is the flagship decision engine. It scores candidate actions from your live state, surfaces one primary recommendation, explains why it was chosen, shows expected impact, and lets you complete that action directly from the page.',
     },
@@ -56,6 +60,10 @@ export function TutorialModal({ isOpen, onClose }) {
       title: 'Settings and Local Save Data',
       body: 'Everything stays local to this device. Settings includes Export Data, Import Data, Reset Progress, Help, confirmation preferences, Road behavior preferences, feedback style, and quest-tier collapse preferences.',
     },
+    {
+      title: 'Offline and Resilience',
+      body: 'The app now includes a lightweight app-shell cache so the installed experience feels more stable. Live progression data still comes from your browser storage on this device, so Export Data remains the safe way to move or back up progress.',
+    },
   ];
 
   return (
@@ -65,7 +73,7 @@ export function TutorialModal({ isOpen, onClose }) {
           <div>
             <p className="eyebrow">How It Works</p>
             <h2>Welcome to The Forge</h2>
-            <p>Everything you need to understand the progression loop, the economy, and the flagship action flow.</p>
+            <p>Everything you need to understand the progression loop, the economy, the flagship action flow, and the installable app experience.</p>
           </div>
           <button className="ghost-button" type="button" onClick={onClose}>
             Close
