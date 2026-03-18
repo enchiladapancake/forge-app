@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { OverviewPage, PerksPage, ProjectsPage, QuestJournalPage, RoadPage, SettingsPage, StatsPage } from './components/AppSections';
+import { DailyRoadPage, OverviewPage, PerksPage, ProjectsPage, QuestJournalPage, RoadPage, SettingsPage, StatsPage } from './components/AppSections';
 import { ProjectDetail } from './components/ProjectDetail';
 import { SessionModal } from './components/SessionModal';
 import { TutorialModal } from './components/TutorialModal';
@@ -20,6 +20,7 @@ import { createExportPayload, loadState, resetState, saveState, validateImportPa
 const APP_NAV_ITEMS = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/road', label: 'The Road' },
+  { to: '/daily-road', label: 'Daily Road' },
   { to: '/journal', label: 'Quest Journal' },
   { to: '/projects', label: 'Projects' },
   { to: '/stats', label: 'Progress' },
@@ -30,6 +31,7 @@ const APP_NAV_ITEMS = [
 const PAGE_META = [
   { match: /^\/$/, title: 'Dashboard', subtitle: 'Your overview of the account right now.' },
   { match: /^\/road/, title: 'The Road', subtitle: 'The single best next action, chosen from the full state of the account.' },
+  { match: /^\/daily-road/, title: 'Daily Road', subtitle: 'A full optimized path for the whole day.' },
   { match: /^\/journal/, title: 'Quest Journal', subtitle: 'Daily missions, weekly trials, and long-arc objectives.' },
   { match: /^\/projects/, title: 'Projects', subtitle: 'Crafts, categories, and individual progression lanes.' },
   { match: /^\/stats/, title: 'Progress', subtitle: 'Radar, milestones, summaries, and account trends.' },
@@ -40,6 +42,21 @@ const PAGE_META = [
 function AppLayout({ children, derived, onOpenSessionModal }) {
   const location = useLocation();
   const currentMeta = PAGE_META.find((entry) => entry.match.test(location.pathname)) || PAGE_META[0];
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.title = `${currentMeta.title} | The Forge`;
+
+      const description = document.querySelector('meta[name="description"]');
+      if (description) {
+        description.setAttribute('content', currentMeta.subtitle);
+      }
+    }
+
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }
+  }, [currentMeta.subtitle, currentMeta.title, location.pathname]);
 
   return (
     <div className="app-shell app-shell--with-nav">
@@ -153,19 +170,87 @@ function App() {
       label,
       note: appState.ui?.feedbackMode === 'minimal' ? 'Progress updated' : note,
     });
+  const updateRoadProgressState = (current) => {
+    const todayKey = derived.todayKey;
+    const nextCount = (current.roadActionCounts?.[todayKey] || 0) + 1;
+    const nextClaims = { ...(current.roadBonusClaims?.[todayKey] || {}) };
+    const messages = [];
+
+    if (nextCount >= 3 && !nextClaims['road-3']) {
+      nextClaims['road-3'] = new Date().toISOString();
+      messages.push('Road chain bonus +24 FP');
+    }
+    if (nextCount >= 5 && !nextClaims['road-5']) {
+      nextClaims['road-5'] = new Date().toISOString();
+      messages.push('Road chain bonus +42 FP');
+    }
+
+    return {
+      nextState: {
+        ...current,
+        roadActionCounts: {
+          ...current.roadActionCounts,
+          [todayKey]: nextCount,
+        },
+        roadBonusClaims: {
+          ...current.roadBonusClaims,
+          [todayKey]: nextClaims,
+        },
+      },
+      messages,
+    };
+  };
+
+  const completeDailyRoadStepInState = (current, stepId) => {
+    const todayKey = derived.todayKey;
+    const currentPlan = current.dailyRoadPlans?.[todayKey];
+    if (!currentPlan) {
+      return { nextState: current, completedPlan: false };
+    }
+
+    const completedStepIds = [...new Set([...(currentPlan.completedStepIds || []), stepId])];
+    const completedPlan = completedStepIds.length >= (currentPlan.steps?.length || 0);
+    const nextState = {
+      ...current,
+      dailyRoadPlans: {
+        ...current.dailyRoadPlans,
+        [todayKey]: {
+          ...currentPlan,
+          completedStepIds,
+        },
+      },
+      dailyRoadCompletionClaims:
+        completedPlan && !current.dailyRoadCompletionClaims?.[todayKey]
+          ? {
+              ...current.dailyRoadCompletionClaims,
+              [todayKey]: new Date().toISOString(),
+            }
+          : current.dailyRoadCompletionClaims,
+    };
+
+    return { nextState, completedPlan };
+  };
 
   const openSessionModal = (defaultProjectId = null) => {
     setSessionModalState({ mode: 'create', defaultProjectId, initialValues: null });
   };
 
-  const openRoadSessionModal = (action) => {
+  const openRoadSessionModal = (action, source = 'road', dailyRoadStepId = null) => {
     if (!appState.ui?.roadAutoOpenPrefill) {
-      openSessionModal(action.projectId || null);
+      setSessionModalState({
+        mode: 'create',
+        source,
+        dailyRoadStepId,
+        defaultProjectId: action.projectId || null,
+        initialValues: null,
+      });
       return;
     }
 
     setSessionModalState({
       mode: 'create',
+      source,
+      dailyRoadStepId,
       defaultProjectId: action.projectId || null,
       initialValues: {
         projectId: action.projectId,
@@ -214,6 +299,22 @@ function App() {
       };
     }
 
+    const extraNotes = [];
+
+    if (sessionModalState?.source === 'road') {
+      const roadProgress = updateRoadProgressState(nextState);
+      nextState = roadProgress.nextState;
+      extraNotes.push(...roadProgress.messages);
+    }
+
+    if (sessionModalState?.dailyRoadStepId) {
+      const dailyRoadProgress = completeDailyRoadStepInState(nextState, sessionModalState.dailyRoadStepId);
+      nextState = dailyRoadProgress.nextState;
+      if (dailyRoadProgress.completedPlan) {
+        extraNotes.push('Daily Road complete +500 XP | +110 FP');
+      }
+    }
+
     const nextDerived = deriveAppState(nextState);
     const nextSession = nextDerived.evaluatedSessions.find((session) => session.id === targetSessionId);
     const xpDelta = nextDerived.overallXp - derived.overallXp;
@@ -254,7 +355,7 @@ function App() {
     setSessionModalState(null);
     pushFeedback(
       `${xpDelta >= 0 ? '+' : ''}${xpDelta} XP`,
-      bonusNotes.length ? bonusNotes.join(' | ') : sessionModalState?.mode === 'edit' ? 'Session updated' : 'Session recorded',
+      [...bonusNotes, ...extraNotes].length ? [...bonusNotes, ...extraNotes].join(' | ') : sessionModalState?.mode === 'edit' ? 'Session updated' : 'Session recorded',
     );
   };
 
@@ -393,12 +494,22 @@ function App() {
       if (habit?.checked) {
         return;
       }
-      handleToggleHabit(action.habitId);
+      const todayHabits = { ...(appState.habitChecks[derived.todayKey] || {}) };
+      todayHabits[action.habitId] = new Date().toISOString();
+      const roadProgress = updateRoadProgressState({
+        ...appState,
+        habitChecks: {
+          ...appState.habitChecks,
+          [derived.todayKey]: todayHabits,
+        },
+      });
+      setAppState(roadProgress.nextState);
+      pushFeedback(`+${habit.rewardXp} XP`, ['Habit completed from The Road', ...roadProgress.messages].join(' | '));
       return;
     }
 
     if (action.executionKind === 'session' && action.projectId) {
-      openRoadSessionModal(action);
+      openRoadSessionModal(action, 'road');
     }
   };
 
@@ -453,6 +564,87 @@ function App() {
       },
     }));
     pushFeedback('Quest rerolled', `New daily quest: ${replacement.title}`);
+  };
+
+  const handleEnsureDailyRoad = () => {
+    if (appState.dailyRoadPlans?.[derived.todayKey]) {
+      return;
+    }
+
+    setAppState((current) => ({
+      ...current,
+      dailyRoadPlans: {
+        ...current.dailyRoadPlans,
+        [derived.todayKey]: {
+          date: derived.todayKey,
+          steps: derived.suggestedDailyRoad,
+          completedStepIds: [],
+          generatedAt: new Date().toISOString(),
+        },
+      },
+    }));
+  };
+
+  const handleRerollDailyRoad = () => {
+    if (derived.dailyRoad.rerollsUsed >= derived.dailyRoad.rerollLimit) {
+      return;
+    }
+
+    setAppState((current) => ({
+      ...current,
+      dailyRoadRerolls: {
+        ...current.dailyRoadRerolls,
+        [derived.todayKey]: (current.dailyRoadRerolls?.[derived.todayKey] || 0) + 1,
+      },
+      dailyRoadPlans: {
+        ...current.dailyRoadPlans,
+        [derived.todayKey]: {
+          date: derived.todayKey,
+          steps: deriveAppState({
+            ...current,
+            dailyRoadRerolls: {
+              ...current.dailyRoadRerolls,
+              [derived.todayKey]: (current.dailyRoadRerolls?.[derived.todayKey] || 0) + 1,
+            },
+          }).suggestedDailyRoad,
+          completedStepIds: [],
+          generatedAt: new Date().toISOString(),
+        },
+      },
+    }));
+    pushFeedback('Daily Road refreshed', 'A new structured path has been generated for today.');
+  };
+
+  const handleCompleteDailyRoadStep = (step) => {
+    if (!step) {
+      return;
+    }
+
+    if (step.executionKind === 'habit' && step.habitId) {
+      const habit = derived.habitsToday.find((entry) => entry.id === step.habitId);
+      if (habit?.checked) {
+        return;
+      }
+      const todayHabits = { ...(appState.habitChecks[derived.todayKey] || {}) };
+      todayHabits[step.habitId] = new Date().toISOString();
+      const completed = completeDailyRoadStepInState(
+        {
+          ...appState,
+          habitChecks: {
+            ...appState.habitChecks,
+            [derived.todayKey]: todayHabits,
+          },
+        },
+        step.id,
+      );
+      setAppState(completed.nextState);
+      pushFeedback(`+${habit.rewardXp} XP`, completed.completedPlan ? 'Daily Road complete +500 XP | +110 FP' : 'Daily Road step completed');
+      return;
+    }
+
+    if (step.executionKind === 'session' && step.projectId) {
+      openRoadSessionModal(step, 'daily-road', step.id);
+    }
   };
 
   const handleToggleHabit = (habitId) => {
@@ -631,6 +823,20 @@ function App() {
           element={
             <AppLayout derived={derived} onOpenSessionModal={() => openSessionModal()}>
               <RoadPage derived={derived} onExecuteAction={handleExecuteRoadAction} onRerollRoad={handleRerollRoad} xpFeedback={xpFeedback} />
+            </AppLayout>
+          }
+        />
+        <Route
+          path="/daily-road"
+          element={
+            <AppLayout derived={derived} onOpenSessionModal={() => openSessionModal()}>
+              <DailyRoadPage
+                derived={derived}
+                onEnsureDailyRoad={handleEnsureDailyRoad}
+                onCompleteDailyRoadStep={handleCompleteDailyRoadStep}
+                onRerollDailyRoad={handleRerollDailyRoad}
+                xpFeedback={xpFeedback}
+              />
             </AppLayout>
           }
         />

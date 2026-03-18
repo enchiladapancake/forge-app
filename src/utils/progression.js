@@ -1298,6 +1298,8 @@ const buildSessionRoadCandidate = ({
   const category = getCategoryDefinition(project.categoryId);
   const focusBonusPercent = getWeeklyFocusBonusPercent(project.categoryId, weeklyFocus);
   const currentMomentumBonus = categoryMomentum[category.id].bonusPercent;
+  const repeatsToday = todaySummary.sessionsByProject?.[project.id] || 0;
+  const recentProjectSessions = projectStats[project.id]?.allSessions?.slice(0, 4).length || 0;
   const noteBonusPercent = note?.trim() ? perkState.noteXpBonusPercent : 0;
   const categoryPerkBonusPercent =
     (category.id === 'music' ? perkState.musicXpBonusPercent : 0) + (category.id === 'coding' ? perkState.codingXpBonusPercent : 0);
@@ -1464,6 +1466,19 @@ const buildSessionRoadCandidate = ({
   const reasons = [];
   let score = estimatedXp;
 
+  if (repeatsToday >= 2) {
+    score -= 220;
+    reasons.push({ label: 'Heavy repetition penalty on the same project', weight: -220 });
+  } else if (repeatsToday >= 1) {
+    score -= 70;
+    reasons.push({ label: 'Soft repetition penalty', weight: -70 });
+  }
+
+  if (recentProjectSessions >= 3) {
+    score -= 90;
+    reasons.push({ label: 'Recent repetition is reducing variety value', weight: -90 });
+  }
+
   if (focusBonusPercent) {
     score += focusBonusPercent === 20 ? 90 : 45;
     reasons.push({ label: `Supports ${focusBonusPercent === 20 ? 'Primary' : 'Secondary'} Focus`, weight: focusBonusPercent === 20 ? 90 : 45 });
@@ -1506,12 +1521,12 @@ const buildSessionRoadCandidate = ({
 
   if (buildIdentity.name === 'Focused Builder' && weeklyFocus?.primaryCategoryId === category.id) {
     score += 35;
-    reasons.push({ label: 'Fits your current build identity', weight: 35 });
+    reasons.push({ label: 'Fits your current progress profile', weight: 35 });
   }
 
   if (buildIdentity.name === 'Balanced Build' && !balanceBonusInfo.currentCategoryIds.includes(category.id)) {
     score += 35;
-    reasons.push({ label: 'Fits your current balanced build', weight: 35 });
+    reasons.push({ label: 'Fits your current balance profile', weight: 35 });
   }
 
   const dailyQuestScore = scoreProgressDelta(dailyQuests, projectedDailyQuests, 180, 0.8);
@@ -1566,7 +1581,7 @@ const buildSessionRoadCandidate = ({
     durationMinutes,
     tag,
     note,
-    reasons: reasons.sort((left, right) => right.weight - left.weight).slice(0, 5).map((reason) => reason.label),
+    reasons: reasons.filter((reason) => reason.weight > 0).sort((left, right) => right.weight - left.weight).slice(0, 5).map((reason) => reason.label),
     completedQuestTitles,
     estimatedXp,
     currentMomentumBonus,
@@ -1863,10 +1878,10 @@ const buildRoadRecommendations = ({
   const sorted = candidatePool.sort((left, right) => right.score - left.score);
   const primary = sorted[0] || null;
   const alternates = [];
-  const seenKeys = new Set(primary ? [`${primary.type}-${primary.categoryId || primary.habitId || primary.projectId}`] : []);
+  const seenKeys = new Set(primary ? [`${primary.habitId || primary.projectId || primary.categoryId}`] : []);
 
   sorted.slice(1).forEach((candidate) => {
-    const uniquenessKey = `${candidate.type}-${candidate.categoryId || candidate.habitId || candidate.projectId}`;
+    const uniquenessKey = `${candidate.habitId || candidate.projectId || candidate.categoryId}`;
     if (!seenKeys.has(uniquenessKey) && alternates.length < 3 + (perkState?.roadAlternateBonus || 0)) {
       alternates.push(candidate);
       seenKeys.add(uniquenessKey);
@@ -1883,9 +1898,138 @@ const buildRoadRecommendations = ({
   };
 };
 
+const ROAD_BONUS_THRESHOLDS = [
+  { id: 'road-3', target: 3, rewardPoints: 24 },
+  { id: 'road-5', target: 5, rewardPoints: 42 },
+];
+
+const buildDailyRoadDraft = ({ road, habitsToday, weeklyFocus, categoryStats, balanceBonusInfo, projectStats, variant = 0 }) => {
+  const steps = [];
+  const seenKeys = new Set();
+
+  const addStep = (action, source = 'road') => {
+    if (!action) {
+      return;
+    }
+
+    const key = `${action.executionKind || action.type}-${action.habitId || action.projectId || action.categoryId || action.id}`;
+    if (seenKeys.has(key)) {
+      return;
+    }
+
+    steps.push({
+      id: `daily-road-${steps.length + 1}-${action.id}`,
+      source,
+      executionKind: action.executionKind || action.type,
+      title: action.title,
+      summary: action.summary,
+      projectId: action.projectId || null,
+      projectName: action.projectName || null,
+      categoryId: action.categoryId || null,
+      categoryName: action.categoryName || null,
+      durationMinutes: action.durationMinutes || null,
+      tag: action.tag || '',
+      note: action.note || '',
+      habitId: action.habitId || null,
+      habitName: action.habitName || null,
+    });
+    seenKeys.add(key);
+  };
+
+  const rotatedAlternates = [...(road.alternates || [])];
+  if (rotatedAlternates.length) {
+    const offset = variant % rotatedAlternates.length;
+    rotatedAlternates.push(...rotatedAlternates.splice(0, offset));
+  }
+
+  addStep(road.primary, 'road-primary');
+  rotatedAlternates.forEach((action) => addStep(action, 'road-alt'));
+
+  const uncheckedHabit = habitsToday.filter((habit) => !habit.checked).sort((left, right) => right.rewardXp - left.rewardXp)[0];
+  if (uncheckedHabit) {
+    addStep(
+      {
+        id: `habit-${uncheckedHabit.id}`,
+        executionKind: 'habit',
+        title: `Complete ${uncheckedHabit.name}`,
+        summary: 'A quick habit clear keeps the daily path efficient and rounded.',
+        habitId: uncheckedHabit.id,
+        habitName: uncheckedHabit.name,
+      },
+      'habit',
+    );
+  }
+
+  const missingBalanceCategoryId = CATEGORY_DEFINITIONS.find((category) => !balanceBonusInfo.currentCategoryIds.includes(category.id))?.id;
+  if (missingBalanceCategoryId) {
+    const project = pickProjectForCategory(missingBalanceCategoryId, projectStats);
+    addStep(
+      {
+        id: `balance-${project.id}`,
+        executionKind: 'session',
+        title: `${project.name} for 20 minutes`,
+        summary: 'This adds category breadth and supports the balance window.',
+        projectId: project.id,
+        projectName: project.name,
+        categoryId: missingBalanceCategoryId,
+        categoryName: getCategoryDefinition(missingBalanceCategoryId)?.name,
+        durationMinutes: 20,
+        tag: suggestSessionTag(project),
+        note: '',
+      },
+      'balance',
+    );
+  }
+
+  if (weeklyFocus?.primaryCategoryId) {
+    const focusProject = pickProjectForCategory(weeklyFocus.primaryCategoryId, projectStats);
+    addStep(
+      {
+        id: `focus-${focusProject.id}`,
+        executionKind: 'session',
+        title: `${focusProject.name} for 25 minutes`,
+        summary: 'Primary Focus gets top priority in the daily path.',
+        projectId: focusProject.id,
+        projectName: focusProject.name,
+        categoryId: focusProject.categoryId,
+        categoryName: getCategoryDefinition(focusProject.categoryId)?.name,
+        durationMinutes: 25,
+        tag: suggestSessionTag(focusProject),
+        note: '',
+      },
+      'focus',
+    );
+  }
+
+  const topCategory = [...categoryStats].sort((left, right) => right.totalXp - left.totalXp)[0];
+  if (topCategory) {
+    const capstoneProject = pickProjectForCategory(topCategory.id, projectStats);
+    addStep(
+      {
+        id: `capstone-${capstoneProject.id}`,
+        executionKind: 'session',
+        title: `${capstoneProject.name} for 30 minutes`,
+        summary: 'A stronger finishing block to close the day with efficient XP.',
+        projectId: capstoneProject.id,
+        projectName: capstoneProject.name,
+        categoryId: capstoneProject.categoryId,
+        categoryName: getCategoryDefinition(capstoneProject.categoryId)?.name,
+        durationMinutes: 30,
+        tag: suggestSessionTag(capstoneProject),
+        note: '',
+      },
+      'capstone',
+    );
+  }
+
+  return steps.slice(0, 5);
+};
+
 const buildCurrencyLedger = ({
   dailyQuests,
   questClaims,
+  habitChecks,
+  habitsToday,
   weeklyChallenges,
   weeklyChallengeClaims,
   longTermQuests,
@@ -1897,6 +2041,9 @@ const buildCurrencyLedger = ({
   milestoneDefinitions,
   milestoneClaims,
   balanceBonusInfo,
+  overallLevelInfo,
+  roadBonusClaims,
+  dailyRoadCompletionClaims,
   purchasedPerks,
 }) => {
   let earnedPoints = 0;
@@ -1909,6 +2056,16 @@ const buildCurrencyLedger = ({
         const points = quest.rewardPoints || 25;
         earnedPoints += points;
         rewardEntries.push({ id: `daily-${dateKey}-${questId}`, createdAt: claimedAt, points });
+      }
+    });
+  });
+
+  Object.entries(habitChecks).forEach(([dateKey, completedHabits]) => {
+    Object.keys(completedHabits).forEach((habitId) => {
+      const habit = habitsToday.find((entry) => entry.id === habitId) || HABIT_DEFINITIONS.find((entry) => entry.id === habitId);
+      if (habit) {
+        earnedPoints += 4;
+        rewardEntries.push({ id: `habit-fp-${dateKey}-${habitId}`, createdAt: completedHabits[habitId], points: 4 });
       }
     });
   });
@@ -1964,6 +2121,23 @@ const buildCurrencyLedger = ({
     });
   });
 
+  Object.entries(roadBonusClaims || {}).forEach(([dateKey, claims]) => {
+    Object.entries(claims).forEach(([bonusId, claimedAt]) => {
+      const reward = ROAD_BONUS_THRESHOLDS.find((entry) => entry.id === bonusId);
+      if (reward) {
+        earnedPoints += reward.rewardPoints;
+        rewardEntries.push({ id: `road-${dateKey}-${bonusId}`, createdAt: claimedAt, points: reward.rewardPoints });
+      }
+    });
+  });
+
+  Object.entries(dailyRoadCompletionClaims || {}).forEach(([dateKey, claimedAt]) => {
+    earnedPoints += 110;
+    rewardEntries.push({ id: `daily-road-${dateKey}`, createdAt: claimedAt, points: 110 });
+  });
+
+  earnedPoints += Math.max((overallLevelInfo?.level || 1) - 1, 0) * 10;
+
   const spentPoints = Object.entries(purchasedPerks).reduce((sum, [perkId, levelValue]) => {
     const perk = PERK_DEFINITIONS.find((entry) => entry.id === perkId);
     const level = Number(levelValue) || 0;
@@ -2002,6 +2176,8 @@ const buildActivityFeed = ({
   ultimateQuests,
   milestoneClaims,
   milestoneHighlights,
+  roadBonusClaims,
+  dailyRoadCompletionClaims,
   purchasedPerks,
 }) => {
   const activities = [];
@@ -2135,6 +2311,31 @@ const buildActivityFeed = ({
         details: `${milestone.body} | +200 XP | +${milestone.rewardPoints} FP`,
       });
     }
+  });
+
+  Object.entries(roadBonusClaims || {}).forEach(([dateKey, claims]) => {
+    Object.entries(claims).forEach(([bonusId, claimedAt]) => {
+      const reward = ROAD_BONUS_THRESHOLDS.find((entry) => entry.id === bonusId);
+      if (reward) {
+        activities.push({
+          id: `road-${dateKey}-${bonusId}`,
+          type: 'road',
+          createdAt: claimedAt,
+          title: 'Road Chain Bonus',
+          details: `${reward.target} Road actions completed | +${reward.rewardPoints} FP`,
+        });
+      }
+    });
+  });
+
+  Object.entries(dailyRoadCompletionClaims || {}).forEach(([dateKey, claimedAt]) => {
+    activities.push({
+      id: `daily-road-${dateKey}`,
+      type: 'daily-road',
+      createdAt: claimedAt,
+      title: 'Daily Road Complete',
+      details: 'Full daily path completed | +500 XP | +110 FP',
+    });
   });
 
   return activities
@@ -2402,6 +2603,8 @@ export const deriveAppState = (state) => {
   const currencyLedger = buildCurrencyLedger({
     dailyQuests,
     questClaims: state.questClaims || {},
+    habitChecks: state.habitChecks || {},
+    habitsToday,
     weeklyChallenges,
     weeklyChallengeClaims: state.weeklyChallengeClaims || {},
     longTermQuests,
@@ -2413,6 +2616,9 @@ export const deriveAppState = (state) => {
     milestoneDefinitions,
     milestoneClaims: state.milestoneClaims || {},
     balanceBonusInfo,
+    overallLevelInfo: provisionalOverallLevelInfo,
+    roadBonusClaims: state.roadBonusClaims || {},
+    dailyRoadCompletionClaims: state.dailyRoadCompletionClaims || {},
     purchasedPerks: state.purchasedPerks || {},
   });
 
@@ -2440,6 +2646,7 @@ export const deriveAppState = (state) => {
     longTermQuests.filter((quest) => quest.claimed).reduce((sum, quest) => sum + quest.rewardXp, 0) +
     legendaryQuests.filter((quest) => quest.claimed).reduce((sum, quest) => sum + quest.rewardXp, 0) +
     ultimateQuests.filter((quest) => quest.claimed).reduce((sum, quest) => sum + quest.rewardXp, 0) +
+    Object.keys(state.dailyRoadCompletionClaims || {}).length * 500 +
     milestoneDefinitions.filter((milestone) => milestone.claimed).reduce((sum) => sum + 200, 0);
 
   const overallXp = totalProjectXp + bonusXp;
@@ -2510,6 +2717,25 @@ export const deriveAppState = (state) => {
     roadDismissals,
     roadRerollsUsed,
   });
+  const suggestedDailyRoad = buildDailyRoadDraft({
+    road,
+    habitsToday,
+    weeklyFocus: state.weeklyFocus,
+    categoryStats,
+    balanceBonusInfo,
+    projectStats,
+    variant: state.dailyRoadRerolls?.[todayKey] || 0,
+  });
+  const savedDailyRoad = state.dailyRoadPlans?.[todayKey] || null;
+  const dailyRoadPlan = savedDailyRoad || {
+    date: todayKey,
+    steps: suggestedDailyRoad,
+    completedStepIds: [],
+  };
+  const completedRoadSteps = dailyRoadPlan.completedStepIds?.length || 0;
+  const roadBonusesReady = ROAD_BONUS_THRESHOLDS.filter(
+    (entry) => (state.roadActionCounts?.[todayKey] || 0) >= entry.target && !state.roadBonusClaims?.[todayKey]?.[entry.id],
+  );
 
   return {
     todayKey,
@@ -2544,6 +2770,18 @@ export const deriveAppState = (state) => {
     milestoneHighlights: milestoneDefinitions,
     recommendedActions,
     road,
+    suggestedDailyRoad,
+    dailyRoad: {
+      plan: dailyRoadPlan,
+      hasSavedPlan: Boolean(savedDailyRoad),
+      rerollsUsed: state.dailyRoadRerolls?.[todayKey] || 0,
+      rerollLimit: 1 + Math.min(perkState.roadRerollBonus, 1),
+      completedCount: completedRoadSteps,
+      totalSteps: dailyRoadPlan.steps?.length || 0,
+      isComplete: Boolean(dailyRoadPlan.steps?.length) && completedRoadSteps >= dailyRoadPlan.steps.length,
+      completionClaimed: Boolean(state.dailyRoadCompletionClaims?.[todayKey]),
+      roadBonusesReady,
+    },
     activeStreakDays,
     categoryStreaks,
     activeStreakBonusPercent,
@@ -2564,6 +2802,8 @@ export const deriveAppState = (state) => {
       ultimateQuests,
       milestoneClaims: state.milestoneClaims || {},
       milestoneHighlights: milestoneDefinitions,
+      roadBonusClaims: state.roadBonusClaims || {},
+      dailyRoadCompletionClaims: state.dailyRoadCompletionClaims || {},
       purchasedPerks: state.purchasedPerks || {},
     }),
   };

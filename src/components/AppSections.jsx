@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { ProgressBar } from './ProgressBar';
 import { CategoryRadarChart } from './CategoryRadarChart';
 import { formatDisplayDate, getCategoryDefinition } from '../utils/progression';
@@ -87,10 +88,11 @@ function HabitCard({ habit, onToggle }) {
   return (
     <label className={`habit-card ${habit.checked ? 'habit-card--checked' : ''}`}>
       <input type="checkbox" checked={habit.checked} onChange={() => onToggle(habit.id)} />
-      <div>
+      <div className="habit-card__body">
         <strong>{habit.name}</strong>
-        <span>+{habit.rewardXp} XP</span>
+        <span>Daily habit</span>
       </div>
+      <div className="reward-pill reward-pill--habit">+{habit.rewardXp} XP</div>
     </label>
   );
 }
@@ -237,32 +239,34 @@ function ProgressProfilePanel({ derived }) {
     .slice(0, 3);
 
   return (
-    <div className="panel panel--soft">
+    <div className="panel panel--soft progress-profile-panel">
       <div className="panel-header">
         <div>
           <h2>Progress Profile</h2>
           <p>The app reads your recent pattern and explains the current style of growth.</p>
         </div>
       </div>
-      <div className="identity-card">
+      <div className="identity-card identity-card--profile">
         <span className="identity-card__label">{profile.label || 'Current profile'}</span>
         <strong>{profile.name}</strong>
         <p>{profile.reason}</p>
       </div>
-      <div className="summary-grid">
-        <div className="summary-card">
+      <div className="progress-profile-metrics">
+        <div className="summary-card summary-card--profile">
           <span>Overall streak</span>
           <strong>{derived.activeStreakDays} days</strong>
+          <p>Consecutive days with at least one productive action.</p>
         </div>
-        <div className="summary-card">
+        <div className="summary-card summary-card--profile">
           <span>Streak bonus</span>
           <strong>+{derived.activeStreakBonusPercent}%</strong>
+          <p>Current active XP bonus from consistency.</p>
         </div>
       </div>
-      <div className="stack-list">
+      <div className="stack-list progress-profile-streaks">
         {activeCategoryStreaks.length ? (
           activeCategoryStreaks.map((category) => (
-            <div key={category.id} className="subpanel subpanel--compact">
+            <div key={category.id} className="subpanel subpanel--compact progress-profile-streak-card">
               <strong>{category.name}</strong>
               <p>{derived.categoryStreaks[category.id]} day category streak</p>
             </div>
@@ -275,15 +279,17 @@ function ProgressProfilePanel({ derived }) {
   );
 }
 
-function UtilitiesPanel({ onExportData, onImportData, onOpenTutorial, onResetProgress }) {
-  return (
-    <div className="panel">
-      <div className="panel-header">
-        <div>
-          <h2>Utilities</h2>
-          <p>Backup, restore, revisit help, or reset the local account.</p>
+function UtilitiesPanel({ onExportData, onImportData, onOpenTutorial, onResetProgress, embedded = false, showTitle = true }) {
+  const content = (
+    <>
+      {showTitle ? (
+        <div className="panel-header">
+          <div>
+            <h2>Utilities</h2>
+            <p>Backup, restore, revisit help, or reset the local account.</p>
+          </div>
         </div>
-      </div>
+      ) : null}
       <div className="utility-grid">
         <button className="ghost-button utility-button" type="button" onClick={onExportData}>
           <strong>Export Data</strong>
@@ -303,6 +309,16 @@ function UtilitiesPanel({ onExportData, onImportData, onOpenTutorial, onResetPro
           <span>Erase local progress and start clean.</span>
         </button>
       </div>
+    </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <div className="panel">
+      {content}
     </div>
   );
 }
@@ -415,6 +431,92 @@ export function RoadPage({ derived, onExecuteAction, onRerollRoad, xpFeedback })
   );
 }
 
+export function DailyRoadPage({ derived, onEnsureDailyRoad, onCompleteDailyRoadStep, onRerollDailyRoad, xpFeedback }) {
+  useEffect(() => {
+    if (!derived.dailyRoad.hasSavedPlan) {
+      onEnsureDailyRoad();
+    }
+  }, [derived.dailyRoad.hasSavedPlan, onEnsureDailyRoad]);
+
+  const plan = derived.dailyRoad.plan;
+  const currentStep = plan.steps?.find((step) => !plan.completedStepIds?.includes(step.id));
+
+  return (
+    <div className="page">
+      <PageHeader
+        eyebrow="Daily Road"
+        title="Optimized Daily Path"
+        body="Daily Road is the full structured path for today. It takes the same logic as The Road and turns it into a clean step-by-step plan for the whole day."
+        actions={xpFeedback ? <div className="feedback-banner"><strong>{xpFeedback.label}</strong><span>{xpFeedback.note}</span></div> : null}
+      />
+
+      <section className="dashboard-grid dashboard-grid--overview">
+        <div className="hero-card hero-card--overview panel--span-2">
+          <div className="hero-stats">
+            <div className="level-badge"><span>Steps cleared</span><strong>{derived.dailyRoad.completedCount}/{derived.dailyRoad.totalSteps}</strong></div>
+            <div className="stat-chip"><span>Rerolls</span><strong>{derived.dailyRoad.rerollsUsed}/{derived.dailyRoad.rerollLimit}</strong></div>
+            <div className="stat-chip"><span>Road bonus</span><strong>{derived.dailyRoad.roadBonusesReady.length ? 'Ready' : 'Tracking'}</strong></div>
+            <div className="stat-chip"><span>Daily reward</span><strong>{derived.dailyRoad.completionClaimed ? 'Claimed' : '+500 XP | +110 FP'}</strong></div>
+          </div>
+          <ProgressBar value={derived.dailyRoad.totalSteps ? (derived.dailyRoad.completedCount / derived.dailyRoad.totalSteps) * 100 : 0} tone="ember" />
+          <div className="hero-action-group">
+            <button className="primary-button" type="button" onClick={() => currentStep && onCompleteDailyRoadStep(currentStep)} disabled={!currentStep}>
+              {currentStep ? 'Complete Current Step' : 'Daily Path Complete'}
+            </button>
+            <button className="ghost-button" type="button" onClick={onRerollDailyRoad} disabled={derived.dailyRoad.rerollsUsed >= derived.dailyRoad.rerollLimit}>
+              Refresh Plan
+            </button>
+          </div>
+        </div>
+
+        <div className="panel panel--soft">
+          <div className="panel-header"><div><h2>Current Step</h2><p>The next action in the planned path.</p></div></div>
+          {currentStep ? (
+            <div className="stack-list">
+              <div className="subpanel">
+                <strong>{currentStep.title}</strong>
+                <p>{currentStep.summary}</p>
+              </div>
+              <RoadActionDetails action={currentStep} />
+            </div>
+          ) : (
+            <div className="subpanel">
+              <strong>Daily Path Complete</strong>
+              <p>You finished the planned path for today. The account already banked the completion reward if it was still available.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="page-section">
+        <div className="panel">
+          <div className="panel-header"><div><h2>Today's Steps</h2><p>A structured path generated once per day unless you explicitly refresh it.</p></div></div>
+          <div className="daily-road-list">
+            {plan.steps?.map((step, index) => {
+              const complete = plan.completedStepIds?.includes(step.id);
+              return (
+                <div key={step.id} className={`daily-road-step ${complete ? 'daily-road-step--complete' : ''}`}>
+                  <div className="daily-road-step__index">{index + 1}</div>
+                  <div className="daily-road-step__body">
+                    <strong>{step.title}</strong>
+                    <p>{step.summary}</p>
+                  </div>
+                  <div className="daily-road-step__actions">
+                    <span className={`status-pill ${complete ? 'status-pill--claimed' : ''}`}>{complete ? 'Done' : 'Queued'}</span>
+                    <button className="secondary-button quest-action-button" type="button" disabled={complete} onClick={() => onCompleteDailyRoadStep(step)}>
+                      {complete ? 'Completed' : 'Do Step'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export function OverviewPage({ derived, onOpenSessionModal, xpFeedback }) {
   const readyDaily = derived.dailyQuests.filter((quest) => quest.complete && !quest.claimed).length;
   const readyLongArc =
@@ -469,15 +571,20 @@ export function OverviewPage({ derived, onOpenSessionModal, xpFeedback }) {
 
       <section className="dashboard-grid">
         <WeeklySummarySnapshot weeklySummary={derived.weeklySummary} />
-        <div className="panel panel--soft">
+        <div className="panel panel--soft activity-panel">
           <div className="panel-header"><div><h2>Recent Activity</h2><p>Recent wins, clears, and progression moments.</p></div></div>
-          <div className="activity-list">
+          <div className="activity-list activity-list--polished">
             {derived.activityFeed.length ? derived.activityFeed.slice(0, 6).map((activity) => (
               <div key={activity.id} className="activity-item activity-item--card">
-                <div><strong>{activity.title}</strong><p>{activity.details}</p></div>
+                <div className="activity-item__body"><strong>{activity.title}</strong><p>{activity.details}</p></div>
                 <span>{new Date(activity.createdAt).toLocaleString()}</span>
               </div>
-            )) : <p className="empty-state">Activity appears here after your first session or reward event.</p>}
+            )) : (
+              <div className="activity-empty-state">
+                <strong>No recent activity yet</strong>
+                <p>Sessions, quest clears, habits, and major rewards will start building your timeline here.</p>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -498,7 +605,7 @@ export function QuestJournalPage({ derived, uiState, onClaimQuest, onClaimWeekly
         </div>
       </SectionToggleCard>
 
-      <section className="dashboard-grid">
+      <section className="dashboard-grid dashboard-grid--journal-top">
         <SectionToggleCard title="Habits" subtitle="Lightweight daily checkoffs that still feed the account." isOpen={sections.habits} onToggle={() => onToggleQuestSection('habits')} tone="habit">
           <div className="habit-grid">
             {derived.habitsToday.map((habit) => <HabitCard key={habit.id} habit={habit} onToggle={onToggleHabit} />)}
@@ -518,7 +625,7 @@ export function QuestJournalPage({ derived, uiState, onClaimQuest, onClaimWeekly
         </div>
       </SectionToggleCard>
 
-      <section className="dashboard-grid">
+      <section className="dashboard-grid dashboard-grid--epic-quests">
         <SectionToggleCard title="Legendary Quests" subtitle="Rare campaign goals meant to take real time." isOpen={sections.legendary} onToggle={() => onToggleQuestSection('legendary')} tone="legendary">
           <div className="stack-list">
             {derived.legendaryQuests.map((quest) => <QuestCard key={quest.id} quest={quest} onClaim={onClaimLegendaryQuest} claimLabel="Claim Legendary Reward" showRequirements tone="legendary" />)}
@@ -690,8 +797,8 @@ export function SettingsPage({ uiState, onExportData, onImportData, onOpenTutori
   return (
     <div className="page">
       <PageHeader eyebrow="Settings" title="Settings and Local Controls" body="Everything in The Forge stays local. This page is for backup, restore, reset, help, and local UX preferences." />
-      <section className="dashboard-grid">
-        <div className="panel panel--span-2">
+      <section className="settings-layout">
+        <div className="panel panel--span-2 settings-panel settings-panel--primary">
           <div className="panel-header"><div><h2>Experience Preferences</h2><p>Local-only behavior settings that shape how the app feels day to day.</p></div></div>
           <div className="preference-grid">
             <PreferenceToggle title="Confirm destructive actions" body="Ask before deletes and reset-style actions." checked={uiState.confirmDestructiveActions} onChange={(value) => onUpdatePreference('confirmDestructiveActions', value)} />
@@ -700,7 +807,7 @@ export function SettingsPage({ uiState, onExportData, onImportData, onOpenTutori
             <PreferenceToggle title="Daily quests expanded by default" body="Keep the Daily Quest section open when you revisit the journal." checked={uiState.questSections?.daily} onChange={() => onToggleQuestSection('daily')} />
           </div>
         </div>
-        <div className="panel panel--soft">
+        <div className="panel panel--soft settings-panel settings-panel--secondary">
           <div className="panel-header"><div><h2>Quest Journal Layout</h2><p>Collapse or expand any quest tier and keep that preference locally.</p></div></div>
           <div className="stack-list">
             {[
@@ -719,7 +826,12 @@ export function SettingsPage({ uiState, onExportData, onImportData, onOpenTutori
           </div>
         </div>
       </section>
-      <UtilitiesPanel onExportData={onExportData} onImportData={onImportData} onOpenTutorial={onOpenTutorial} onResetProgress={onResetProgress} />
+      <section className="settings-layout">
+        <div className="panel panel--soft settings-panel settings-panel--secondary">
+          <div className="panel-header"><div><h2>Local Account</h2><p>Backups, restore, help, and reset live here so the app behaves like a complete product, not a utility dump.</p></div></div>
+          <UtilitiesPanel embedded showTitle={false} onExportData={onExportData} onImportData={onImportData} onOpenTutorial={onOpenTutorial} onResetProgress={onResetProgress} />
+        </div>
+      </section>
     </div>
   );
 }

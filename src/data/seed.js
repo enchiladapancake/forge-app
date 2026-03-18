@@ -385,6 +385,11 @@ export const DEFAULT_APP_STATE = {
   dailyQuestOverrides: {},
   roadRerolls: {},
   roadDismissals: {},
+  dailyRoadPlans: {},
+  dailyRoadRerolls: {},
+  roadActionCounts: {},
+  roadBonusClaims: {},
+  dailyRoadCompletionClaims: {},
   ultimateQuestClaims: {},
   ui: {
     tutorialDismissed: false,

@@ -3,8 +3,16 @@
   "short_name": "Forge",
   "description": "A local-first progression dashboard for leveling up real-life projects.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0b1020",
   "theme_color": "#0b1020",
-  "icons": []
+  "icons": [
+    {
+      "src": "/forge-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
 }

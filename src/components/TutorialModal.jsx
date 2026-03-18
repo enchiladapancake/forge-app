@@ -10,11 +10,15 @@ export function TutorialModal({ isOpen, onClose }) {
     },
     {
       title: 'Navigation Structure',
-      body: 'Use Dashboard for the current overview, The Road for the best next action, Quest Journal for all quest tiers, Projects for categories and timelines, Progress for stats and profile insight, Perks for the Forge Points economy, and Settings for help and local preferences.',
+      body: 'Use Dashboard for the current overview, The Road for the best next action, Daily Road for a full optimized plan for the day, Quest Journal for all quest tiers, Projects for categories and timelines, Progress for stats and profile insight, Perks for the Forge Points economy, and Settings for help and local preferences.',
     },
     {
       title: 'The Road',
       body: 'The Road is the flagship decision engine. It scores candidate actions from your live state, surfaces one primary recommendation, explains why it was chosen, shows expected impact, and lets you complete that action directly from the page.',
+    },
+    {
+      title: 'Daily Road',
+      body: 'Daily Road is the structured version of The Road. It generates a clean multi-step path for the whole day, lets you complete each step directly, tracks progress through the path, and refreshes once per day unless you explicitly reroll it.',
     },
     {
       title: 'What The Road Considers',
@@ -46,7 +50,7 @@ export function TutorialModal({ isOpen, onClose }) {
     },
     {
       title: 'Feedback and Rewards',
-      body: 'When you log, edit, delete, claim, upgrade, or complete a Road action, the app shows concise XP and Forge Point feedback. Settings lets you keep those messages full or minimal.',
+      body: 'When you log, edit, delete, claim, upgrade, or complete a Road or Daily Road action, the app shows concise XP and Forge Point feedback. Settings lets you keep those messages full or minimal.',
     },
     {
       title: 'Settings and Local Save Data',

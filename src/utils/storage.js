@@ -2,6 +2,7 @@ import { DEFAULT_APP_STATE } from '../data/seed';
 
 export const STORAGE_KEY = 'the-forge-state';
 const EXPORT_VERSION = 1;
+const hasBrowserStorage = () => typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
 
 export const normalizeState = (parsed = {}) => ({
   ...DEFAULT_APP_STATE,
@@ -17,6 +18,12 @@ export const normalizeState = (parsed = {}) => ({
   dailyQuestOverrides: parsed.dailyQuestOverrides && typeof parsed.dailyQuestOverrides === 'object' ? parsed.dailyQuestOverrides : {},
   roadRerolls: parsed.roadRerolls && typeof parsed.roadRerolls === 'object' ? parsed.roadRerolls : {},
   roadDismissals: parsed.roadDismissals && typeof parsed.roadDismissals === 'object' ? parsed.roadDismissals : {},
+  dailyRoadPlans: parsed.dailyRoadPlans && typeof parsed.dailyRoadPlans === 'object' ? parsed.dailyRoadPlans : {},
+  dailyRoadRerolls: parsed.dailyRoadRerolls && typeof parsed.dailyRoadRerolls === 'object' ? parsed.dailyRoadRerolls : {},
+  roadActionCounts: parsed.roadActionCounts && typeof parsed.roadActionCounts === 'object' ? parsed.roadActionCounts : {},
+  roadBonusClaims: parsed.roadBonusClaims && typeof parsed.roadBonusClaims === 'object' ? parsed.roadBonusClaims : {},
+  dailyRoadCompletionClaims:
+    parsed.dailyRoadCompletionClaims && typeof parsed.dailyRoadCompletionClaims === 'object' ? parsed.dailyRoadCompletionClaims : {},
   ultimateQuestClaims: parsed.ultimateQuestClaims && typeof parsed.ultimateQuestClaims === 'object' ? parsed.ultimateQuestClaims : {},
   ui:
     parsed.ui && typeof parsed.ui === 'object'
@@ -53,25 +60,44 @@ export const normalizeState = (parsed = {}) => ({
 });
 
 export const loadState = () => {
+  if (!hasBrowserStorage()) {
+    return normalizeState(DEFAULT_APP_STATE);
+  }
+
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (!stored) {
-      return DEFAULT_APP_STATE;
+      return normalizeState(DEFAULT_APP_STATE);
     }
 
     return normalizeState(JSON.parse(stored));
   } catch (error) {
-    return DEFAULT_APP_STATE;
+    return normalizeState(DEFAULT_APP_STATE);
   }
 };
 
 export const saveState = (state) => {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (!hasBrowserStorage()) {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    // Swallow storage failures so the UI stays usable in restricted/private contexts.
+  }
 };
 
 export const resetState = () => {
-  window.localStorage.removeItem(STORAGE_KEY);
-  return DEFAULT_APP_STATE;
+  if (hasBrowserStorage()) {
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      // Ignore local storage removal errors and still return a clean in-memory state.
+    }
+  }
+
+  return normalizeState(DEFAULT_APP_STATE);
 };
 
 export const createExportPayload = () => ({

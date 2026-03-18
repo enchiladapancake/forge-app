@@ -10,6 +10,24 @@ The Forge is a fully local MVP productivity RPG built with React and Vite. It tu
 4. Run `npm run dev`.
 5. Open the local Vite URL shown in the terminal.
 
+## Deploy
+
+### Vercel
+
+1. Import this repo/project into Vercel.
+2. Keep the default framework as `Vite`.
+3. Use the default build command `npm run build`.
+4. Use the default output directory `dist`.
+5. Deploy.
+
+`vercel.json` is already included so client-side routes like `/road`, `/daily-road`, `/projects/:projectId`, and the other app sections rewrite back to `index.html` correctly.
+
+### Notes
+
+- The app is fully local-first and stores progress in the browser's `localStorage`, so each browser/device keeps its own save unless the user uses Export/Import.
+- If you deploy under a subpath instead of the site root, update the Vite base path in `vite.config.js` before deploying.
+- Node.js 18+ is the intended runtime for local install/build.
+
 ## MVP features
 
 - Dashboard with Mylo Level, category summaries, projects, daily quests, habits, recent note, and activity feed

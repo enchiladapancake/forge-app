@@ -18,6 +18,10 @@
   --text: #edf2f7;
   --muted: #9fb0c3;
   --amber: #f6ad55;
+  --gold: #fbbf24;
+  --sky: #7dd3fc;
+  --violet: #a78bfa;
+  --rose: #f472b6;
   --surface-1: rgba(9, 15, 28, 0.92);
   --surface-2: rgba(15, 23, 36, 0.86);
   --surface-3: rgba(21, 31, 48, 0.72);
@@ -480,7 +484,9 @@ small,
 }
 
 .panel--soft {
-  background: rgba(15, 23, 36, 0.64);
+  background:
+    linear-gradient(180deg, rgba(19, 29, 45, 0.84), rgba(12, 18, 31, 0.74)),
+    rgba(15, 23, 36, 0.64);
 }
 
 .panel--span-2 {
@@ -495,6 +501,10 @@ small,
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.activity-list {
+  gap: 10px;
 }
 
 .radar-chart-wrap {
@@ -609,25 +619,45 @@ small,
   border-color: rgba(245, 158, 11, 0.2);
 }
 
+.quest-tier--habit {
+  border-color: rgba(52, 211, 153, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(52, 211, 153, 0.08), transparent 44%),
+    rgba(15, 23, 36, 0.7);
+}
+
 .quest-tier--weekly {
   border-color: rgba(96, 165, 250, 0.2);
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 42%),
+    rgba(15, 23, 36, 0.7);
 }
 
 .quest-tier--legendary {
   border-color: rgba(217, 119, 6, 0.24);
+  background:
+    radial-gradient(circle at top right, rgba(245, 158, 11, 0.12), transparent 40%),
+    linear-gradient(180deg, rgba(40, 24, 5, 0.4), rgba(15, 23, 36, 0.76));
 }
 
 .quest-tier--ultimate {
   border-color: rgba(244, 114, 182, 0.24);
-  background: linear-gradient(180deg, rgba(50, 16, 32, 0.42), rgba(15, 23, 36, 0.76));
+  background:
+    radial-gradient(circle at top right, rgba(244, 114, 182, 0.16), transparent 42%),
+    linear-gradient(180deg, rgba(50, 16, 32, 0.48), rgba(15, 23, 36, 0.8));
 }
 
 .quest-card--ultimate {
   border-color: rgba(244, 114, 182, 0.26);
+  background:
+    linear-gradient(180deg, rgba(45, 17, 33, 0.86), rgba(18, 23, 38, 0.9));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .quest-card--legendary {
   border-color: rgba(245, 158, 11, 0.22);
+  background:
+    linear-gradient(180deg, rgba(46, 29, 8, 0.8), rgba(17, 23, 36, 0.88));
 }
 
 .subpanel--claimed {
@@ -637,13 +667,14 @@ small,
 .quest-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 14px;
+  gap: 18px;
 }
 
 .quest-card {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-height: 220px;
 }
 
 .quest-card__header,
@@ -675,6 +706,13 @@ small,
 .reward-pill--points {
   border-color: rgba(96, 165, 250, 0.18);
   background: rgba(14, 34, 61, 0.82);
+}
+
+.reward-pill--habit {
+  margin-left: auto;
+  border-color: rgba(52, 211, 153, 0.18);
+  background: rgba(14, 44, 38, 0.74);
+  color: #d1fae5;
 }
 
 .quest-card__header p {
@@ -785,11 +823,13 @@ small,
 
 .identity-card {
   display: grid;
-  gap: 8px;
-  padding: 16px;
-  border-radius: 18px;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 20px;
   border: 1px solid rgba(245, 158, 11, 0.18);
-  background: linear-gradient(180deg, rgba(61, 33, 7, 0.62), rgba(15, 23, 36, 0.72));
+  background:
+    radial-gradient(circle at top right, rgba(251, 191, 36, 0.14), transparent 42%),
+    linear-gradient(180deg, rgba(61, 33, 7, 0.62), rgba(15, 23, 36, 0.72));
 }
 
 .identity-card__label {
@@ -835,14 +875,17 @@ small,
 .project-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
+  gap: 18px;
 }
 
 .habit-card {
-  padding: 14px;
+  padding: 18px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
+  min-height: 94px;
+  background:
+    linear-gradient(180deg, rgba(17, 27, 43, 0.84), rgba(12, 18, 31, 0.78));
 }
 
 .habit-card input {
@@ -850,14 +893,22 @@ small,
   height: 18px;
 }
 
-.habit-card div {
+.habit-card__body {
   display: flex;
   flex-direction: column;
+  gap: 4px;
+}
+
+.habit-card__body span {
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 .habit-card--checked {
   border-color: rgba(52, 211, 153, 0.32);
-  background: rgba(16, 50, 42, 0.52);
+  background:
+    radial-gradient(circle at top right, rgba(52, 211, 153, 0.14), transparent 46%),
+    rgba(16, 50, 42, 0.52);
 }
 
 .project-card {
@@ -923,7 +974,11 @@ small,
 }
 
 .activity-item--card {
-  padding: 14px 0;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  background:
+    linear-gradient(180deg, rgba(18, 28, 44, 0.72), rgba(12, 19, 32, 0.76));
 }
 
 .activity-item:last-child {
@@ -931,10 +986,16 @@ small,
   border-bottom: none;
 }
 
+.activity-item__body {
+  display: grid;
+  gap: 4px;
+}
+
 .activity-item span {
   color: var(--muted);
   font-size: 0.83rem;
   text-align: right;
+  white-space: nowrap;
 }
 
 .achievement-card {
@@ -1144,7 +1205,8 @@ small,
   padding: 14px;
   border-radius: 16px;
   border: 1px solid rgba(148, 163, 184, 0.14);
-  background: rgba(15, 23, 36, 0.56);
+  background:
+    linear-gradient(180deg, rgba(18, 28, 43, 0.72), rgba(12, 19, 32, 0.7));
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1180,14 +1242,17 @@ small,
 .preference-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
+  gap: 16px;
 }
 
 .preference-card {
-  padding: 14px;
+  padding: 18px;
   display: flex;
   align-items: flex-start;
   gap: 12px;
+  min-height: 126px;
+  background:
+    linear-gradient(180deg, rgba(19, 30, 46, 0.76), rgba(13, 20, 34, 0.78));
 }
 
 .preference-card input {
@@ -1211,12 +1276,230 @@ small,
   justify-content: space-between;
   gap: 12px;
   width: 100%;
-  padding: 12px 14px;
+  padding: 16px 18px;
   text-align: left;
+  background:
+    linear-gradient(180deg, rgba(18, 28, 44, 0.68), rgba(12, 19, 32, 0.7));
 }
 
 .perk-card {
   min-height: 290px;
+}
+
+.activity-panel {
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top right, rgba(125, 211, 252, 0.08), transparent 45%),
+    linear-gradient(180deg, rgba(17, 27, 43, 0.84), rgba(12, 18, 31, 0.78));
+}
+
+.activity-list--polished {
+  gap: 12px;
+}
+
+.activity-empty-state {
+  display: grid;
+  gap: 8px;
+  place-items: start;
+  min-height: 180px;
+  padding: 22px;
+  border-radius: 22px;
+  border: 1px dashed rgba(148, 163, 184, 0.18);
+  background:
+    linear-gradient(180deg, rgba(18, 28, 44, 0.58), rgba(12, 19, 32, 0.5));
+}
+
+.activity-empty-state strong {
+  font-size: 1rem;
+}
+
+.dashboard-grid--journal-top {
+  grid-template-columns: 0.92fr 1.08fr;
+  align-items: start;
+}
+
+.dashboard-grid--epic-quests {
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+}
+
+.dashboard-grid--epic-quests .quest-tier--legendary,
+.dashboard-grid--epic-quests .quest-tier--ultimate {
+  gap: 22px;
+  padding: 26px;
+}
+
+.dashboard-grid--epic-quests .stack-list {
+  gap: 16px;
+}
+
+.dashboard-grid--epic-quests .quest-card--legendary,
+.dashboard-grid--epic-quests .quest-card--ultimate {
+  gap: 18px;
+  padding: 22px;
+}
+
+.dashboard-grid--epic-quests .quest-card--ultimate {
+  min-height: 280px;
+}
+
+.dashboard-grid--journal-top .quest-tier--habit,
+.dashboard-grid--journal-top .quest-tier--weekly {
+  min-height: 100%;
+}
+
+.dashboard-grid--journal-top .habit-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.dashboard-grid--journal-top .quest-grid {
+  gap: 20px;
+}
+
+.progress-profile-panel {
+  display: grid;
+  gap: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(251, 191, 36, 0.1), transparent 42%),
+    linear-gradient(180deg, rgba(20, 29, 44, 0.84), rgba(12, 18, 31, 0.8));
+  overflow: hidden;
+}
+
+.identity-card--profile {
+  min-width: 0;
+  min-height: unset;
+  gap: 12px;
+  padding: 22px;
+  align-content: normal;
+}
+
+.identity-card--profile strong {
+  font-size: 1.45rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.progress-profile-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.summary-card--profile {
+  min-width: 0;
+  min-height: 118px;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 18px;
+}
+
+.summary-card--profile p {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.progress-profile-streaks {
+  gap: 14px;
+}
+
+.progress-profile-streak-card {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  background:
+    linear-gradient(180deg, rgba(23, 34, 51, 0.8), rgba(15, 23, 36, 0.78));
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+}
+
+.settings-panel {
+  gap: 20px;
+}
+
+.settings-panel--primary {
+  background:
+    radial-gradient(circle at top right, rgba(125, 211, 252, 0.08), transparent 44%),
+    linear-gradient(180deg, rgba(18, 28, 44, 0.84), rgba(12, 18, 31, 0.78));
+}
+
+.settings-panel--secondary {
+  background:
+    radial-gradient(circle at top right, rgba(167, 139, 250, 0.08), transparent 44%),
+    linear-gradient(180deg, rgba(18, 28, 44, 0.8), rgba(12, 18, 31, 0.76));
+}
+
+.settings-panel .panel {
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+.settings-panel .utility-grid {
+  gap: 16px;
+}
+
+.settings-panel .utility-button {
+  min-height: 126px;
+  padding: 18px;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(20, 30, 46, 0.76), rgba(13, 20, 34, 0.78));
+}
+
+.daily-road-list {
+  display: grid;
+  gap: 14px;
+}
+
+.daily-road-step {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 36, 0.56);
+}
+
+.daily-road-step--complete {
+  border-color: rgba(52, 211, 153, 0.24);
+  background: rgba(16, 50, 42, 0.36);
+}
+
+.daily-road-step__index {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(245, 158, 11, 0.14);
+  color: #fde68a;
+  font-weight: 700;
+}
+
+.daily-road-step__body {
+  display: grid;
+  gap: 6px;
+}
+
+.daily-road-step__body p {
+  color: var(--muted);
+}
+
+.daily-road-step__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .form-actions {
@@ -1238,6 +1521,15 @@ small,
   }
 
   .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-grid--journal-top,
+  .dashboard-grid--epic-quests {
+    grid-template-columns: 1fr;
+  }
+
+  .progress-profile-metrics {
     grid-template-columns: 1fr;
   }
 
@@ -1271,6 +1563,12 @@ small,
 
   .radar-chart-wrap {
     height: 280px;
+  }
+
+  .activity-empty-state,
+  .settings-panel .utility-button,
+  .preference-card {
+    min-height: unset;
   }
 
   .detail-hero__content,

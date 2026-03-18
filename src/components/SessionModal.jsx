@@ -21,7 +21,7 @@ export function SessionModal({ isOpen, isEditing = false, onClose, onSubmit, pro
   }, [initialProject, initialValues, isOpen]);
 
   useEffect(() => {
-    if (!isOpen) {
+    if (!isOpen || typeof document === 'undefined') {
       return undefined;
     }
 
