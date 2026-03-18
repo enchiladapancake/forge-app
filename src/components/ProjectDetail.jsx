@@ -8,7 +8,7 @@ export function ProjectDetail({ project, stats, onBack, onOpenSessionModal, onEd
     <div className="page page--detail">
       <section className="detail-hero">
         <button className="ghost-button" type="button" onClick={onBack}>
-          Back to Dashboard
+          Back to Projects
         </button>
         <div className="detail-hero__content">
           <div>

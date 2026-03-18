@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom';
-import { Dashboard } from './components/Dashboard';
+import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { OverviewPage, PerksPage, ProjectsPage, QuestJournalPage, RoadPage, SettingsPage, StatsPage } from './components/AppSections';
 import { ProjectDetail } from './components/ProjectDetail';
 import { SessionModal } from './components/SessionModal';
 import { TutorialModal } from './components/TutorialModal';
@@ -17,28 +17,84 @@ import {
 } from './utils/progression';
 import { createExportPayload, loadState, resetState, saveState, validateImportPayload } from './utils/storage';
 
-function AppLayout({ children }) {
+const APP_NAV_ITEMS = [
+  { to: '/', label: 'Dashboard', end: true },
+  { to: '/road', label: 'The Road' },
+  { to: '/journal', label: 'Quest Journal' },
+  { to: '/projects', label: 'Projects' },
+  { to: '/stats', label: 'Progress' },
+  { to: '/perks', label: 'Perks' },
+  { to: '/settings', label: 'Settings' },
+];
+
+const PAGE_META = [
+  { match: /^\/$/, title: 'Dashboard', subtitle: 'Your overview of the account right now.' },
+  { match: /^\/road/, title: 'The Road', subtitle: 'The single best next action, chosen from the full state of the account.' },
+  { match: /^\/journal/, title: 'Quest Journal', subtitle: 'Daily missions, weekly trials, and long-arc objectives.' },
+  { match: /^\/projects/, title: 'Projects', subtitle: 'Crafts, categories, and individual progression lanes.' },
+  { match: /^\/stats/, title: 'Progress', subtitle: 'Radar, milestones, summaries, and account trends.' },
+  { match: /^\/perks/, title: 'Perks', subtitle: 'Forge Points and permanent upgrade decisions.' },
+  { match: /^\/settings/, title: 'Settings', subtitle: 'Utilities, backups, reset, and product help.' },
+];
+
+function AppLayout({ children, derived, onOpenSessionModal }) {
+  const location = useLocation();
+  const currentMeta = PAGE_META.find((entry) => entry.match.test(location.pathname)) || PAGE_META[0];
+
   return (
-    <div className="app-shell">
-      <header className="topbar">
+    <div className="app-shell app-shell--with-nav">
+      <aside className="sidebar-shell">
         <Link className="brand-link" to="/">
           <span className="brand-link__mark">TF</span>
           <div>
             <strong>The Forge</strong>
-            <span>Local progression dashboard</span>
+            <span>Personal progression system</span>
           </div>
         </Link>
-      </header>
-      {children}
-    </div>
-  );
-}
 
-function DashboardRoute(props) {
-  return (
-    <AppLayout>
-      <Dashboard {...props} />
-    </AppLayout>
+        <nav className="sidebar-nav" aria-label="Primary">
+          {APP_NAV_ITEMS.map((item) => (
+            <NavLink key={item.to} className={({ isActive }) => `sidebar-nav__link${isActive ? ' active' : ''}`} to={item.to} end={item.end}>
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="sidebar-summary">
+          <div className="subpanel subpanel--compact">
+            <strong>Mylo Level</strong>
+            <p>Level {derived.overallLevelInfo.level} | {derived.overallXp} XP</p>
+          </div>
+          <div className="subpanel subpanel--compact">
+            <strong>Forge Points</strong>
+            <p>{derived.forgePoints} available</p>
+          </div>
+        </div>
+      </aside>
+
+      <div className="shell-content">
+        <header className="topbar topbar--app">
+          <div className="topbar-copy">
+            <p className="eyebrow">The Forge</p>
+            <h2>{currentMeta.title}</h2>
+            <p>{currentMeta.subtitle}</p>
+          </div>
+          <button className="primary-button" type="button" onClick={onOpenSessionModal}>
+            Log Session
+          </button>
+        </header>
+
+        <nav className="mobile-nav" aria-label="Mobile">
+          {APP_NAV_ITEMS.map((item) => (
+            <NavLink key={item.to} className={({ isActive }) => `mobile-nav__link${isActive ? ' active' : ''}`} to={item.to} end={item.end}>
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -52,11 +108,11 @@ function ProjectRoute({ derived, onOpenSessionModal, onEditSession, onDeleteSess
   }
 
   return (
-    <AppLayout>
+    <AppLayout derived={derived} onOpenSessionModal={() => onOpenSessionModal(project.id)}>
       <ProjectDetail
         project={project}
         stats={derived.projectStats[project.id]}
-        onBack={() => navigate('/')}
+        onBack={() => navigate('/projects')}
         onOpenSessionModal={(targetProjectId) => onOpenSessionModal(targetProjectId)}
         onEditSession={onEditSession}
         onDeleteSession={onDeleteSession}
@@ -92,6 +148,34 @@ function App() {
   }, [xpFeedback]);
 
   const derived = useMemo(() => deriveAppState(appState), [appState]);
+  const pushFeedback = (label, note) =>
+    setXpFeedback({
+      label,
+      note: appState.ui?.feedbackMode === 'minimal' ? 'Progress updated' : note,
+    });
+
+  const openSessionModal = (defaultProjectId = null) => {
+    setSessionModalState({ mode: 'create', defaultProjectId, initialValues: null });
+  };
+
+  const openRoadSessionModal = (action) => {
+    if (!appState.ui?.roadAutoOpenPrefill) {
+      openSessionModal(action.projectId || null);
+      return;
+    }
+
+    setSessionModalState({
+      mode: 'create',
+      defaultProjectId: action.projectId || null,
+      initialValues: {
+        projectId: action.projectId,
+        durationMinutes: action.durationMinutes || 20,
+        tag: action.tag || '',
+        note: action.note || '',
+        date: derived.todayKey,
+      },
+    });
+  };
 
   const closeTutorial = () => {
     setIsTutorialOpen(false);
@@ -168,10 +252,10 @@ function App() {
 
     setAppState(nextState);
     setSessionModalState(null);
-    setXpFeedback({
-      label: `${xpDelta >= 0 ? '+' : ''}${xpDelta} XP`,
-      note: bonusNotes.length ? bonusNotes.join(' | ') : sessionModalState?.mode === 'edit' ? 'Session updated' : 'Session recorded',
-    });
+    pushFeedback(
+      `${xpDelta >= 0 ? '+' : ''}${xpDelta} XP`,
+      bonusNotes.length ? bonusNotes.join(' | ') : sessionModalState?.mode === 'edit' ? 'Session updated' : 'Session recorded',
+    );
   };
 
   const handleClaimQuest = (questId) => {
@@ -190,10 +274,7 @@ function App() {
         },
       },
     }));
-    setXpFeedback({
-      label: `+${targetQuest.rewardXp} XP | +${targetQuest.rewardPoints} FP`,
-      note: `Daily quest completed: ${targetQuest.title}`,
-    });
+    pushFeedback(`+${targetQuest.rewardXp} XP | +${targetQuest.rewardPoints} FP`, `Daily quest completed: ${targetQuest.title}`);
   };
 
   const handleClaimWeeklyChallenge = (challengeId) => {
@@ -213,10 +294,7 @@ function App() {
         },
       },
     }));
-    setXpFeedback({
-      label: `+${challenge.rewardXp} XP | +${challenge.rewardPoints} FP`,
-      note: `Weekly challenge cleared: ${challenge.title}`,
-    });
+    pushFeedback(`+${challenge.rewardXp} XP | +${challenge.rewardPoints} FP`, `Weekly challenge cleared: ${challenge.title}`);
   };
 
   const handleClaimLongTermQuest = (questId) => {
@@ -232,10 +310,7 @@ function App() {
         [questId]: new Date().toISOString(),
       },
     }));
-    setXpFeedback({
-      label: `+${quest.rewardXp} XP | +${quest.rewardPoints} FP`,
-      note: `Long-term quest completed: ${quest.title}`,
-    });
+    pushFeedback(`+${quest.rewardXp} XP | +${quest.rewardPoints} FP`, `Long-term quest completed: ${quest.title}`);
   };
 
   const handleClaimLegendaryQuest = (questId) => {
@@ -251,10 +326,23 @@ function App() {
         [questId]: new Date().toISOString(),
       },
     }));
-    setXpFeedback({
-      label: `+${quest.rewardXp} XP | +${quest.rewardPoints} FP`,
-      note: `Legendary quest completed: ${quest.title}`,
-    });
+    pushFeedback(`+${quest.rewardXp} XP | +${quest.rewardPoints} FP`, `Legendary quest completed: ${quest.title}`);
+  };
+
+  const handleClaimUltimateQuest = (questId) => {
+    const quest = derived.ultimateQuests.find((entry) => entry.id === questId);
+    if (!quest || !quest.complete || quest.claimed) {
+      return;
+    }
+
+    setAppState((current) => ({
+      ...current,
+      ultimateQuestClaims: {
+        ...current.ultimateQuestClaims,
+        [questId]: new Date().toISOString(),
+      },
+    }));
+    pushFeedback(`+${quest.rewardXp} XP | +${quest.rewardPoints} FP`, `Ultimate quest completed: ${quest.title}`);
   };
 
   const handleClaimMilestone = (milestoneId) => {
@@ -270,15 +358,18 @@ function App() {
         [milestoneId]: new Date().toISOString(),
       },
     }));
-    setXpFeedback({
-      label: `+200 XP | +${milestone.rewardPoints} FP`,
-      note: `Milestone claimed: ${milestone.title}`,
-    });
+    pushFeedback(`+200 XP | +${milestone.rewardPoints} FP`, `Milestone claimed: ${milestone.title}`);
   };
 
   const handlePurchasePerk = (perkId) => {
     const perk = PERK_DEFINITIONS.find((entry) => entry.id === perkId);
-    if (!perk || derived.forgePoints < perk.cost || appState.purchasedPerks?.[perkId]) {
+    const currentLevel = Number(appState.purchasedPerks?.[perkId] || 0);
+    if (!perk || currentLevel >= perk.maxLevel) {
+      return;
+    }
+
+    const nextCost = perk.getCost(currentLevel);
+    if (derived.forgePoints < nextCost) {
       return;
     }
 
@@ -286,13 +377,52 @@ function App() {
       ...current,
       purchasedPerks: {
         ...current.purchasedPerks,
-        [perkId]: new Date().toISOString(),
+        [perkId]: currentLevel + 1,
       },
     }));
-    setXpFeedback({
-      label: `-${perk.cost} FP`,
-      note: `Perk unlocked: ${perk.title}`,
-    });
+    pushFeedback(`-${nextCost} FP`, `Perk upgraded: ${perk.title} to level ${currentLevel + 1}`);
+  };
+
+  const handleExecuteRoadAction = (action) => {
+    if (!action) {
+      return;
+    }
+
+    if (action.executionKind === 'habit' && action.habitId) {
+      const habit = derived.habitsToday.find((entry) => entry.id === action.habitId);
+      if (habit?.checked) {
+        return;
+      }
+      handleToggleHabit(action.habitId);
+      return;
+    }
+
+    if (action.executionKind === 'session' && action.projectId) {
+      openRoadSessionModal(action);
+    }
+  };
+
+  const handleRerollRoad = (action) => {
+    const todayKey = derived.todayKey;
+    const rerollLimit = derived.road.rerollInfo.limit;
+    const rerollsUsed = derived.road.rerollInfo.used;
+
+    if (!action || rerollsUsed >= rerollLimit) {
+      return;
+    }
+
+    setAppState((current) => ({
+      ...current,
+      roadRerolls: {
+        ...current.roadRerolls,
+        [todayKey]: (current.roadRerolls?.[todayKey] || 0) + 1,
+      },
+      roadDismissals: {
+        ...current.roadDismissals,
+        [todayKey]: [...new Set([...(current.roadDismissals?.[todayKey] || []), action.id])],
+      },
+    }));
+    pushFeedback('Road rerolled', 'A different high-value path has been surfaced.');
   };
 
   const handleRerollDailyQuest = (slotIndex) => {
@@ -322,10 +452,7 @@ function App() {
         },
       },
     }));
-    setXpFeedback({
-      label: 'Quest rerolled',
-      note: `New daily quest: ${replacement.title}`,
-    });
+    pushFeedback('Quest rerolled', `New daily quest: ${replacement.title}`);
   };
 
   const handleToggleHabit = (habitId) => {
@@ -348,10 +475,7 @@ function App() {
     });
     const habit = derived.habitsToday.find((entry) => entry.id === habitId);
     if (habit && !habit.checked) {
-      setXpFeedback({
-        label: `+${habit.rewardXp} XP`,
-        note: `Habit completed: ${habit.name}`,
-      });
+      pushFeedback(`+${habit.rewardXp} XP`, `Habit completed: ${habit.name}`);
     }
   };
 
@@ -387,7 +511,9 @@ function App() {
         return;
       }
 
-      const confirmed = window.confirm('Importing this save will overwrite your current local data. Do you want to continue?');
+      const confirmed = appState.ui?.confirmDestructiveActions
+        ? window.confirm('Importing this save will overwrite your current local data. Do you want to continue?')
+        : true;
       if (!confirmed) {
         return;
       }
@@ -402,9 +528,11 @@ function App() {
   };
 
   const handleResetProgress = () => {
-    const confirmed = window.confirm(
+    const confirmed = appState.ui?.confirmDestructiveActions
+      ? window.confirm(
       'Reset Progress will permanently erase all saved sessions, quests, habits, achievements, notes, and progression from this device. This cannot be undone. Continue?',
-    );
+        )
+      : true;
 
     if (!confirmed) {
       return;
@@ -431,7 +559,9 @@ function App() {
   };
 
   const handleDeleteSession = (sessionId) => {
-    const confirmed = window.confirm('Delete this session? This will immediately recalculate XP, levels, streaks, quests, and achievements.');
+    const confirmed = appState.ui?.confirmDestructiveActions
+      ? window.confirm('Delete this session? This will immediately recalculate XP, levels, streaks, quests, and achievements.')
+      : true;
     if (!confirmed) {
       return;
     }
@@ -443,10 +573,7 @@ function App() {
     const nextDerived = deriveAppState(nextState);
     const xpDelta = nextDerived.overallXp - derived.overallXp;
     setAppState(nextState);
-    setXpFeedback({
-      label: `${xpDelta >= 0 ? '+' : ''}${xpDelta} XP`,
-      note: 'Session removed and progression recalculated',
-    });
+    pushFeedback(`${xpDelta >= 0 ? '+' : ''}${xpDelta} XP`, 'Session removed and progression recalculated');
   };
 
   const handleWeeklyFocusChange = (nextFocus) => {
@@ -465,33 +592,115 @@ function App() {
     }));
   };
 
+  const handleUpdatePreference = (key, value) => {
+    setAppState((current) => ({
+      ...current,
+      ui: {
+        ...current.ui,
+        [key]: value,
+      },
+    }));
+  };
+
+  const handleToggleQuestSection = (sectionKey) => {
+    setAppState((current) => ({
+      ...current,
+      ui: {
+        ...current.ui,
+        questSections: {
+          ...current.ui.questSections,
+          [sectionKey]: !current.ui.questSections?.[sectionKey],
+        },
+      },
+    }));
+  };
+
   return (
     <>
       <Routes>
         <Route
           path="/"
           element={
-            <DashboardRoute
-              derived={derived}
-              projects={PROJECT_DEFINITIONS}
-              onSelectProject={(projectId) => navigate(`/projects/${projectId}`)}
-              onOpenSessionModal={() => setSessionModalState({ mode: 'create', defaultProjectId: null, initialValues: null })}
-              onClaimQuest={handleClaimQuest}
-              onClaimWeeklyChallenge={handleClaimWeeklyChallenge}
-              onClaimLongTermQuest={handleClaimLongTermQuest}
-              onClaimLegendaryQuest={handleClaimLegendaryQuest}
-              onClaimMilestone={handleClaimMilestone}
-              onToggleHabit={handleToggleHabit}
-              onExportData={handleExportData}
-              onImportData={handleImportData}
-              onResetProgress={handleResetProgress}
-              onOpenTutorial={() => setIsTutorialOpen(true)}
-              weeklyFocus={appState.weeklyFocus}
-              onWeeklyFocusChange={handleWeeklyFocusChange}
-              onPurchasePerk={handlePurchasePerk}
-              onRerollDailyQuest={handleRerollDailyQuest}
-              xpFeedback={xpFeedback}
-            />
+            <AppLayout derived={derived} onOpenSessionModal={() => openSessionModal()}>
+              <OverviewPage derived={derived} onOpenSessionModal={() => openSessionModal()} xpFeedback={xpFeedback} />
+            </AppLayout>
+          }
+        />
+        <Route
+          path="/road"
+          element={
+            <AppLayout derived={derived} onOpenSessionModal={() => openSessionModal()}>
+              <RoadPage derived={derived} onExecuteAction={handleExecuteRoadAction} onRerollRoad={handleRerollRoad} xpFeedback={xpFeedback} />
+            </AppLayout>
+          }
+        />
+        <Route
+          path="/journal"
+          element={
+            <AppLayout derived={derived} onOpenSessionModal={() => openSessionModal()}>
+              <QuestJournalPage
+                derived={derived}
+                uiState={appState.ui}
+                onClaimQuest={handleClaimQuest}
+                onClaimWeeklyChallenge={handleClaimWeeklyChallenge}
+                onClaimLongTermQuest={handleClaimLongTermQuest}
+                onClaimLegendaryQuest={handleClaimLegendaryQuest}
+                onClaimUltimateQuest={handleClaimUltimateQuest}
+                onToggleHabit={handleToggleHabit}
+                onRerollDailyQuest={handleRerollDailyQuest}
+                onToggleQuestSection={handleToggleQuestSection}
+              />
+            </AppLayout>
+          }
+        />
+        <Route
+          path="/projects"
+          element={
+            <AppLayout derived={derived} onOpenSessionModal={() => openSessionModal()}>
+              <ProjectsPage
+                derived={derived}
+                projects={PROJECT_DEFINITIONS}
+                onSelectProject={(projectId) => navigate(`/projects/${projectId}`)}
+                onOpenSessionModal={() => openSessionModal()}
+              />
+            </AppLayout>
+          }
+        />
+        <Route
+          path="/stats"
+          element={
+            <AppLayout derived={derived} onOpenSessionModal={() => openSessionModal()}>
+              <StatsPage
+                derived={derived}
+                weeklyFocus={appState.weeklyFocus}
+                onWeeklyFocusChange={handleWeeklyFocusChange}
+                onClaimMilestone={handleClaimMilestone}
+              />
+            </AppLayout>
+          }
+        />
+        <Route
+          path="/perks"
+          element={
+            <AppLayout derived={derived} onOpenSessionModal={() => openSessionModal()}>
+              <PerksPage derived={derived} onPurchasePerk={handlePurchasePerk} />
+            </AppLayout>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <AppLayout derived={derived} onOpenSessionModal={() => openSessionModal()}>
+              <SettingsPage
+                uiState={appState.ui}
+                onExportData={handleExportData}
+                onImportData={handleImportData}
+                onResetProgress={handleResetProgress}
+                onOpenTutorial={() => setIsTutorialOpen(true)}
+                onUpdatePreference={handleUpdatePreference}
+                onToggleQuestSection={handleToggleQuestSection}
+              />
+            </AppLayout>
           }
         />
         <Route
@@ -499,7 +708,7 @@ function App() {
           element={
             <ProjectRoute
               derived={derived}
-              onOpenSessionModal={(projectId) => setSessionModalState({ mode: 'create', defaultProjectId: projectId, initialValues: null })}
+              onOpenSessionModal={(projectId) => openSessionModal(projectId)}
               onEditSession={handleEditSession}
               onDeleteSession={handleDeleteSession}
             />
@@ -510,6 +719,7 @@ function App() {
 
       <SessionModal
         isOpen={Boolean(sessionModalState)}
+        isEditing={sessionModalState?.mode === 'edit'}
         onClose={() => setSessionModalState(null)}
         onSubmit={handleSaveSession}
         projects={PROJECT_DEFINITIONS}

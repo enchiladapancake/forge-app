@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CATEGORY_DEFINITIONS } from '../data/seed';
 import { getTodayKey } from '../utils/progression';
 
-export function SessionModal({ isOpen, onClose, onSubmit, projects, defaultProjectId, initialValues }) {
+export function SessionModal({ isOpen, isEditing = false, onClose, onSubmit, projects, defaultProjectId, initialValues }) {
   const initialProject = useMemo(() => initialValues?.projectId || defaultProjectId || projects[0]?.id || '', [defaultProjectId, initialValues, projects]);
   const [projectId, setProjectId] = useState(initialProject);
   const [durationMinutes, setDurationMinutes] = useState(30);
@@ -60,8 +60,8 @@ export function SessionModal({ isOpen, onClose, onSubmit, projects, defaultProje
       <div className="modal-panel" onClick={(event) => event.stopPropagation()}>
         <div className="modal-header">
           <div>
-            <h2>{initialValues ? 'Edit Session' : 'Log Session'}</h2>
-            <p>{initialValues ? 'Update the session and all progression will recalculate automatically.' : 'Capture focused work and turn it into progress.'}</p>
+            <h2>{isEditing ? 'Edit Session' : 'Log Session'}</h2>
+            <p>{isEditing ? 'Update the session and all progression will recalculate automatically.' : 'Capture focused work and turn it into progress.'}</p>
           </div>
           <button className="ghost-button" type="button" onClick={onClose}>
             Close
@@ -146,7 +146,7 @@ export function SessionModal({ isOpen, onClose, onSubmit, projects, defaultProje
 
           <div className="form-actions">
             <button className="primary-button" type="submit">
-              {initialValues ? 'Save Changes' : 'Save Session'}
+              {isEditing ? 'Save Changes' : 'Save Session'}
             </button>
           </div>
         </form>

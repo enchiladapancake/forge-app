@@ -15,8 +15,32 @@ export const normalizeState = (parsed = {}) => ({
   habitChecks: parsed.habitChecks && typeof parsed.habitChecks === 'object' ? parsed.habitChecks : {},
   dailyQuestRerolls: parsed.dailyQuestRerolls && typeof parsed.dailyQuestRerolls === 'object' ? parsed.dailyQuestRerolls : {},
   dailyQuestOverrides: parsed.dailyQuestOverrides && typeof parsed.dailyQuestOverrides === 'object' ? parsed.dailyQuestOverrides : {},
-  ui: parsed.ui && typeof parsed.ui === 'object' ? parsed.ui : {},
-  purchasedPerks: parsed.purchasedPerks && typeof parsed.purchasedPerks === 'object' ? parsed.purchasedPerks : {},
+  roadRerolls: parsed.roadRerolls && typeof parsed.roadRerolls === 'object' ? parsed.roadRerolls : {},
+  roadDismissals: parsed.roadDismissals && typeof parsed.roadDismissals === 'object' ? parsed.roadDismissals : {},
+  ultimateQuestClaims: parsed.ultimateQuestClaims && typeof parsed.ultimateQuestClaims === 'object' ? parsed.ultimateQuestClaims : {},
+  ui:
+    parsed.ui && typeof parsed.ui === 'object'
+      ? {
+          ...DEFAULT_APP_STATE.ui,
+          ...parsed.ui,
+          questSections:
+            parsed.ui.questSections && typeof parsed.ui.questSections === 'object'
+              ? {
+                  ...DEFAULT_APP_STATE.ui.questSections,
+                  ...parsed.ui.questSections,
+                }
+              : DEFAULT_APP_STATE.ui.questSections,
+        }
+      : DEFAULT_APP_STATE.ui,
+  purchasedPerks:
+    parsed.purchasedPerks && typeof parsed.purchasedPerks === 'object'
+      ? Object.fromEntries(
+          Object.entries(parsed.purchasedPerks).map(([perkId, value]) => [
+            perkId,
+            typeof value === 'number' ? value : value ? 1 : 0,
+          ]),
+        )
+      : {},
   weeklyFocus:
     parsed.weeklyFocus && typeof parsed.weeklyFocus === 'object'
       ? {
