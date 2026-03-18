@@ -1,7 +1,7 @@
 import { ProgressBar } from './ProgressBar';
 import { formatDisplayDate, getCategoryDefinition } from '../utils/progression';
 
-export function ProjectDetail({ project, stats, onBack, onOpenSessionModal, onEditSession, onDeleteSession }) {
+export function ProjectDetail({ project, stats, levelLabel = 'Forge Level', onBack, onOpenSessionModal, onEditSession, onDeleteSession }) {
   const category = getCategoryDefinition(project.categoryId);
 
   return (
@@ -14,7 +14,7 @@ export function ProjectDetail({ project, stats, onBack, onOpenSessionModal, onEd
           <div>
             <p className="eyebrow">{category.name}</p>
             <h1>{project.name}</h1>
-            <p className="hero-copy">Focused sessions here contribute directly to {category.name} and your overall Mylo Level.</p>
+            <p className="hero-copy">Focused sessions here contribute directly to {category.name} and your overall {levelLabel}.</p>
           </div>
           <button className="primary-button" type="button" onClick={() => onOpenSessionModal(project.id)}>
             Log New Session

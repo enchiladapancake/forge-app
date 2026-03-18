@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { ProgressBar } from './ProgressBar';
 import { CategoryRadarChart } from './CategoryRadarChart';
+import { PresetTemplatePanel, StructureManagementPanel } from './StructureManager';
 import { formatDisplayDate, getCategoryDefinition } from '../utils/progression';
 
 function PageHeader({ eyebrow, title, body, actions }) {
@@ -523,6 +524,7 @@ export function OverviewPage({ derived, onOpenSessionModal, xpFeedback }) {
     derived.longTermQuests.filter((quest) => quest.complete && !quest.claimed).length +
     derived.legendaryQuests.filter((quest) => quest.complete && !quest.claimed).length +
     derived.ultimateQuests.filter((quest) => quest.complete && !quest.claimed).length;
+  const levelLabel = derived.structure?.profile?.levelLabel || 'Forge Level';
 
   return (
     <div className="page">
@@ -541,12 +543,12 @@ export function OverviewPage({ derived, onOpenSessionModal, xpFeedback }) {
       <section className="dashboard-grid dashboard-grid--overview">
         <div className="hero-card hero-card--overview panel--span-2">
           <div className="hero-stats">
-            <div className="level-badge"><span>Mylo Level</span><strong>{derived.overallLevelInfo.level}</strong></div>
+            <div className="level-badge"><span>{levelLabel}</span><strong>{derived.overallLevelInfo.level}</strong></div>
             <div className="stat-chip"><span>Total XP</span><strong>{derived.overallXp}</strong></div>
             <div className="stat-chip"><span>Forge Points</span><strong>{derived.forgePoints}</strong></div>
             <div className="stat-chip"><span>Rewards ready</span><strong>{readyDaily + readyLongArc}</strong></div>
           </div>
-          <ProgressBar value={derived.overallLevelInfo.progressPercent} label={`${derived.overallLevelInfo.currentLevelXp} / ${derived.overallLevelInfo.xpForNextLevel} XP to next Mylo Level`} tone="ember" />
+          <ProgressBar value={derived.overallLevelInfo.progressPercent} label={`${derived.overallLevelInfo.currentLevelXp} / ${derived.overallLevelInfo.xpForNextLevel} XP to next ${levelLabel}`} tone="ember" />
           <div className="subpanel"><strong>Road focus</strong><p>{derived.road.primary ? `${derived.road.primary.title} | ${derived.road.primary.summary}` : 'Log a session to activate The Road.'}</p></div>
         </div>
         <ProgressProfilePanel derived={derived} />
@@ -793,10 +795,35 @@ export function PerksPage({ derived, onPurchasePerk }) {
   );
 }
 
-export function SettingsPage({ uiState, onExportData, onImportData, onOpenTutorial, onResetProgress, onUpdatePreference, onToggleQuestSection }) {
+export function SettingsPage({
+  uiState,
+  profile,
+  presets,
+  onExportData,
+  onImportData,
+  onOpenTutorial,
+  onResetProgress,
+  onUpdatePreference,
+  onToggleQuestSection,
+  onUpdateCategory,
+  onCreateCategory,
+  onDeleteCategory,
+  onUpdateProject,
+  onCreateProject,
+  onDeleteProject,
+  onUpdateHabit,
+  onCreateHabit,
+  onDeleteHabit,
+  onToggleHabitEnabled,
+}) {
   return (
     <div className="page">
-      <PageHeader eyebrow="Settings" title="Settings and Local Controls" body="Everything in The Forge stays local. This page is for backup, restore, reset, help, and local UX preferences." />
+      <PageHeader eyebrow="Settings" title="Settings and Local Controls" body="Everything in The Forge stays local. This page now covers setup presets, structure customization, backups, reset, help, and local UX preferences." />
+      <section className="settings-layout">
+        <div className="panel panel--soft settings-panel settings-panel--secondary">
+          <PresetTemplatePanel presets={presets} currentPresetId={profile?.presetId} />
+        </div>
+      </section>
       <section className="settings-layout">
         <div className="panel panel--span-2 settings-panel settings-panel--primary">
           <div className="panel-header"><div><h2>Experience Preferences</h2><p>Local-only behavior settings that shape how the app feels day to day.</p></div></div>
@@ -824,6 +851,24 @@ export function SettingsPage({ uiState, onExportData, onImportData, onOpenTutori
               </button>
             ))}
           </div>
+        </div>
+      </section>
+      <section className="settings-layout">
+        <div className="panel panel--soft settings-panel settings-panel--primary">
+          <div className="panel-header"><div><h2>Categories, Projects, and Habits</h2><p>Your setup is now editable in-product. The current Mylo structure stays preserved as a real preset, and you can keep shaping this copy safely over time.</p></div></div>
+          <StructureManagementPanel
+            profile={profile}
+            onUpdateCategory={onUpdateCategory}
+            onCreateCategory={onCreateCategory}
+            onDeleteCategory={onDeleteCategory}
+            onUpdateProject={onUpdateProject}
+            onCreateProject={onCreateProject}
+            onDeleteProject={onDeleteProject}
+            onUpdateHabit={onUpdateHabit}
+            onCreateHabit={onCreateHabit}
+            onDeleteHabit={onDeleteHabit}
+            onToggleHabitEnabled={onToggleHabitEnabled}
+          />
         </div>
       </section>
       <section className="settings-layout">

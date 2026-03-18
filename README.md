@@ -2,6 +2,8 @@
 
 The Forge is a fully local MVP productivity RPG built with React and Vite. It turns productive sessions into XP, project levels, category progression, quest rewards, and overall Mylo Level progress.
 
+The app now supports local setup presets and profile-backed structure customization. The original Mylo setup is preserved as a first-class built-in preset, and brand-new users can start from other presets or a blank canvas.
+
 ## Run locally
 
 1. Install Node.js 18+.

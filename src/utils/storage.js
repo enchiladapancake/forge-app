@@ -1,12 +1,40 @@
-import { DEFAULT_APP_STATE } from '../data/seed';
+import { DEFAULT_APP_STATE, createFreshAppState, createLegacyMyloProfile, createProfileFromPreset, getPresetById, syncCategoryProjectIds } from '../data/seed';
 
 export const STORAGE_KEY = 'the-forge-state';
 const EXPORT_VERSION = 1;
 const hasBrowserStorage = () => typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
 
 export const normalizeState = (parsed = {}) => ({
-  ...DEFAULT_APP_STATE,
+  ...createFreshAppState(),
   ...parsed,
+  profile:
+    parsed.profile && typeof parsed.profile === 'object' && Array.isArray(parsed.profile.categories) && Array.isArray(parsed.profile.projects) && Array.isArray(parsed.profile.habits)
+      ? parsed.profile.isConfigured === false
+        ? {
+            ...createFreshAppState().profile,
+            ...parsed.profile,
+            categories: syncCategoryProjectIds(
+              Array.isArray(parsed.profile.categories) ? parsed.profile.categories : [],
+              Array.isArray(parsed.profile.projects) ? parsed.profile.projects : [],
+            ),
+            projects: Array.isArray(parsed.profile.projects) ? parsed.profile.projects : [],
+            habits: Array.isArray(parsed.profile.habits) ? parsed.profile.habits : [],
+            isConfigured: false,
+          }
+        : {
+            ...createProfileFromPreset(parsed.profile.presetId || getPresetById('mylo-personal').id),
+            ...parsed.profile,
+            presetName: getPresetById(parsed.profile.presetId || 'mylo-personal').name,
+            projects: Array.isArray(parsed.profile.projects) ? parsed.profile.projects : [],
+            categories: syncCategoryProjectIds(
+              Array.isArray(parsed.profile.categories) ? parsed.profile.categories : [],
+              Array.isArray(parsed.profile.projects) ? parsed.profile.projects : [],
+            ),
+            habits: Array.isArray(parsed.profile.habits) ? parsed.profile.habits : [],
+            isConfigured: true,
+            updatedAt: new Date().toISOString(),
+          }
+      : createLegacyMyloProfile(),
   sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
   questClaims: parsed.questClaims && typeof parsed.questClaims === 'object' ? parsed.questClaims : {},
   weeklyChallengeClaims: parsed.weeklyChallengeClaims && typeof parsed.weeklyChallengeClaims === 'object' ? parsed.weeklyChallengeClaims : {},
@@ -28,17 +56,17 @@ export const normalizeState = (parsed = {}) => ({
   ui:
     parsed.ui && typeof parsed.ui === 'object'
       ? {
-          ...DEFAULT_APP_STATE.ui,
+          ...createFreshAppState().ui,
           ...parsed.ui,
           questSections:
             parsed.ui.questSections && typeof parsed.ui.questSections === 'object'
               ? {
-                  ...DEFAULT_APP_STATE.ui.questSections,
+                  ...createFreshAppState().ui.questSections,
                   ...parsed.ui.questSections,
                 }
-              : DEFAULT_APP_STATE.ui.questSections,
+              : createFreshAppState().ui.questSections,
         }
-      : DEFAULT_APP_STATE.ui,
+      : createFreshAppState().ui,
   purchasedPerks:
     parsed.purchasedPerks && typeof parsed.purchasedPerks === 'object'
       ? Object.fromEntries(
@@ -56,7 +84,7 @@ export const normalizeState = (parsed = {}) => ({
             ? parsed.weeklyFocus.secondaryCategoryIds.filter(Boolean).slice(0, 2)
             : [],
         }
-      : DEFAULT_APP_STATE.weeklyFocus,
+      : createFreshAppState().weeklyFocus,
 });
 
 export const loadState = () => {
@@ -97,7 +125,7 @@ export const resetState = () => {
     }
   }
 
-  return normalizeState(DEFAULT_APP_STATE);
+  return normalizeState(createFreshAppState());
 };
 
 export const createExportPayload = () => ({

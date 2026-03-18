@@ -1473,6 +1473,95 @@ small,
     linear-gradient(180deg, rgba(20, 30, 46, 0.76), rgba(13, 20, 34, 0.78));
 }
 
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.preset-card,
+.structure-card,
+.structure-create-card {
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background:
+    linear-gradient(180deg, rgba(20, 30, 46, 0.8), rgba(13, 20, 34, 0.82));
+}
+
+.preset-card {
+  padding: 18px;
+  display: grid;
+  gap: 10px;
+  text-align: left;
+  color: var(--text);
+}
+
+.preset-card:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.preset-card__top,
+.preset-card__stats,
+.structure-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.preset-card__stats {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.preset-card--current {
+  border-color: rgba(245, 158, 11, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.structure-manager,
+.structure-block,
+.setup-editor {
+  display: grid;
+  gap: 18px;
+}
+
+.structure-card,
+.structure-create-card {
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.structure-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.structure-form-grid label,
+.setup-field {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.structure-form-grid__wide {
+  grid-column: 1 / -1;
+}
+
+.structure-card__meta {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.setup-panel {
+  display: grid;
+  gap: 18px;
+}
+
 .daily-road-list {
   display: grid;
   gap: 14px;

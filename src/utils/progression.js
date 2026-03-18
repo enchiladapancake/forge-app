@@ -1,5 +1,19 @@
 import { CATEGORY_DEFINITIONS, HABIT_DEFINITIONS, PROJECT_DEFINITIONS, QUEST_POOL } from '../data/seed';
 
+let activeCategories = CATEGORY_DEFINITIONS;
+let activeProjects = PROJECT_DEFINITIONS;
+let activeHabits = HABIT_DEFINITIONS;
+let allConfiguredHabits = HABIT_DEFINITIONS;
+
+const applyActiveStructure = (profile) => {
+  activeCategories = Array.isArray(profile?.categories) ? profile.categories : CATEGORY_DEFINITIONS;
+  activeProjects = Array.isArray(profile?.projects) ? profile.projects : PROJECT_DEFINITIONS;
+  allConfiguredHabits = Array.isArray(profile?.habits) ? profile.habits : HABIT_DEFINITIONS;
+  activeHabits = allConfiguredHabits.filter((habit) => habit.enabled !== false);
+};
+
+const getActiveProjectsByCategory = (categoryId) => activeProjects.filter((project) => project.categoryId === categoryId);
+
 const formatDateKey = (date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -65,13 +79,13 @@ export const getLevelFromXp = (xp) => {
 };
 
 const getProjectMap = () =>
-  PROJECT_DEFINITIONS.reduce((accumulator, project) => {
+  activeProjects.reduce((accumulator, project) => {
     accumulator[project.id] = project;
     return accumulator;
   }, {});
 
 const getCategoryMap = () =>
-  CATEGORY_DEFINITIONS.reduce((accumulator, category) => {
+  activeCategories.reduce((accumulator, category) => {
     accumulator[category.id] = category;
     return accumulator;
   }, {});
@@ -273,9 +287,9 @@ const LONG_TERM_QUEST_DEFINITIONS = [
     getProgress: ({ categoryStats }) => {
       const music = categoryStats.find((category) => category.id === 'music');
       return {
-        current: music.totalXp,
+        current: music?.totalXp || 0,
         target: 2000,
-        complete: music.totalXp >= 2000,
+        complete: (music?.totalXp || 0) >= 2000,
       };
     },
   },
@@ -287,9 +301,9 @@ const LONG_TERM_QUEST_DEFINITIONS = [
     getProgress: ({ categoryStats }) => {
       const coding = categoryStats.find((category) => category.id === 'coding');
       return {
-        current: coding.levelInfo.level,
+        current: coding?.levelInfo?.level || 0,
         target: 5,
-        complete: coding.levelInfo.level >= 5,
+        complete: (coding?.levelInfo?.level || 0) >= 5,
       };
     },
   },
@@ -397,7 +411,7 @@ const LEGENDARY_QUEST_DEFINITIONS = [
     rewardXp: 4500,
     rewardPoints: 300,
     getRequirements: ({ categoryStats, codingNotedSessions }) => [
-      { label: 'Coding sessions', current: categoryStats.find((category) => category.id === 'coding').sessionCount, target: 30 },
+      { label: 'Coding sessions', current: categoryStats.find((category) => category.id === 'coding')?.sessionCount || 0, target: 30 },
       { label: 'Coding notes', current: codingNotedSessions, target: 15 },
     ],
   },
@@ -426,12 +440,12 @@ const ULTIMATE_QUEST_DEFINITIONS = [
   {
     id: 'ultimate-legend-collector',
     title: 'Ultimate | Campaign Collector',
-    description: 'Complete 3 Legendary Quests and reach Mylo Level 18.',
+    description: 'Complete 3 Legendary Quests and reach account level 18.',
     rewardXp: 9000,
     rewardPoints: 700,
     getRequirements: ({ legendaryQuests, overallLevelInfo }) => [
       { label: 'Legendary quests completed', current: legendaryQuests.filter((quest) => quest.claimed).length, target: 3 },
-      { label: 'Mylo level', current: overallLevelInfo.level, target: 18 },
+      { label: 'Account level', current: overallLevelInfo.level, target: 18 },
     ],
   },
   {
@@ -537,8 +551,71 @@ const WEEKLY_CHALLENGE_POOL = [
   },
 ];
 
+const DAILY_QUEST_REQUIREMENTS = {
+  'bass-session': { projectIds: ['bass'] },
+  'python-session': { projectIds: ['python'] },
+  'exercise-session': { projectIds: ['exercise'] },
+  'coding-session': { categoryIds: ['coding'] },
+  'bass-30': { projectIds: ['bass'] },
+  'italian-20': { projectIds: ['italian'] },
+  'music-session': { categoryIds: ['music'] },
+  'health-25': { categoryIds: ['health'] },
+  'strategy-session': { projectIds: ['chess'] },
+  'academic-session': { projectIds: ['school'] },
+  'language-session': { projectIds: ['italian'] },
+  'music-60': { categoryIds: ['music'] },
+  'coding-45': { categoryIds: ['coding'] },
+  'touch-three-categories': { minCategories: 3 },
+  'touch-four-categories': { minCategories: 4 },
+  'balanced-week-progress': { minCategories: 4 },
+  'balance-secure': { minCategories: 5 },
+};
+
+const LONG_TERM_QUEST_REQUIREMENTS = {
+  'bass-10-sessions': { projectIds: ['bass'] },
+  'python-20-sessions': { projectIds: ['python'] },
+  'exercise-600-minutes': { projectIds: ['exercise'] },
+  'music-2000-xp': { categoryIds: ['music'] },
+  'coding-level-5': { categoryIds: ['coding'] },
+  'momentum-three-categories': { minCategories: 3 },
+  'balanced-week-three-times': { minCategories: 5 },
+  'touch-six-categories': { minCategories: 6 },
+};
+
+const LEGENDARY_QUEST_REQUIREMENTS = {
+  'legend-bass-master': { projectIds: ['bass'] },
+  'legend-coding-architect': { categoryIds: ['coding'] },
+  'legend-balanced-five': { minCategories: 5 },
+};
+
+const ULTIMATE_QUEST_REQUIREMENTS = {
+  'ultimate-balanced-empire': { minCategories: 5 },
+  'ultimate-spectrum': { minCategories: 4 },
+};
+
+const WEEKLY_CHALLENGE_REQUIREMENTS = {
+  'weekly-touch-five-categories': { minCategories: 5 },
+  'weekly-momentum-two': { minCategories: 2 },
+};
+
+const isStructureRequirementSupported = ({ projectIds = [], categoryIds = [], minCategories = 0 } = {}) => {
+  if (minCategories && activeCategories.length < minCategories) {
+    return false;
+  }
+
+  if (projectIds.length && !projectIds.every((projectId) => activeProjects.some((project) => project.id === projectId))) {
+    return false;
+  }
+
+  if (categoryIds.length && !categoryIds.every((categoryId) => activeCategories.some((category) => category.id === categoryId))) {
+    return false;
+  }
+
+  return true;
+};
+
 const createEmptyProjectStats = () =>
-  PROJECT_DEFINITIONS.reduce((accumulator, project) => {
+  activeProjects.reduce((accumulator, project) => {
     accumulator[project.id] = {
       projectId: project.id,
       name: project.name,
@@ -569,8 +646,11 @@ export const evaluateSessions = (sessions, purchasedPerks = {}) => {
   const dayBonusMap = {};
   const categorySessionDates = {};
 
-  return sortedSessions.map((session) => {
-    const project = PROJECT_DEFINITIONS.find((entry) => entry.id === session.projectId);
+  return sortedSessions.flatMap((session) => {
+    const project = activeProjects.find((entry) => entry.id === session.projectId);
+    if (!project) {
+      return [];
+    }
     const baseXp = calculateBaseXp(session.durationMinutes, project.rate);
 
     if (!dayBonusMap[session.date]) {
@@ -625,7 +705,7 @@ export const evaluateSessions = (sessions, purchasedPerks = {}) => {
       perkBonusPercent / 100;
     const finalXp = Math.round(baseXp * totalBonusMultiplier);
 
-    return {
+    return [{
       ...session,
       baseXp,
       streakBonusPercent,
@@ -634,7 +714,7 @@ export const evaluateSessions = (sessions, purchasedPerks = {}) => {
       momentumBonusPercent,
       perkBonusPercent,
       finalXp,
-    };
+    }];
   });
 };
 
@@ -719,15 +799,19 @@ const buildTodaySummary = (evaluatedSessions, todayKey, state) => {
 };
 
 const buildDailyQuests = (questContext, overrides = {}) => {
+  const availableQuestPool = QUEST_POOL.filter((quest) => isStructureRequirementSupported(DAILY_QUEST_REQUIREMENTS[quest.id]));
   const quests = [];
-  const rotationIndex = new Date().getDate() % QUEST_POOL.length;
+  const rotationIndex = availableQuestPool.length ? new Date().getDate() % availableQuestPool.length : 0;
 
-  for (let offset = 0; offset < 5; offset += 1) {
-    quests.push(QUEST_POOL[(rotationIndex + offset) % QUEST_POOL.length]);
+  for (let offset = 0; offset < Math.min(5, availableQuestPool.length); offset += 1) {
+    quests.push(availableQuestPool[(rotationIndex + offset) % availableQuestPool.length]);
   }
 
   if (!quests.some((quest) => quest.id === 'log-one-session')) {
-    quests[0] = QUEST_POOL.find((quest) => quest.id === 'log-one-session');
+    const fallbackQuest = availableQuestPool.find((quest) => quest.id === 'log-one-session');
+    if (fallbackQuest) {
+      quests[0] = fallbackQuest;
+    }
   }
 
   const selectedQuests = quests.map((quest, slotIndex) => {
@@ -736,7 +820,7 @@ const buildDailyQuests = (questContext, overrides = {}) => {
       return quest;
     }
 
-    return QUEST_POOL.find((entry) => entry.id === overrideId) || quest;
+    return availableQuestPool.find((entry) => entry.id === overrideId) || quest;
   });
 
   return selectedQuests.map((quest, slotIndex) => ({
@@ -759,7 +843,7 @@ const buildDailyQuests = (questContext, overrides = {}) => {
 };
 
 const buildHabitList = (habitChecks, todayKey, perkState) =>
-  HABIT_DEFINITIONS.map((habit) => ({
+  activeHabits.map((habit) => ({
     ...habit,
     rewardXp: habit.rewardXp + (perkState?.habitXpBonusFlat || 0),
     checked: Boolean(habitChecks?.[todayKey]?.[habit.id]),
@@ -806,7 +890,7 @@ const buildRecommendedActions = ({
   weeklySummary,
 }) => {
   const suggestions = [];
-  const primaryCategory = CATEGORY_DEFINITIONS.find((category) => category.id === weeklyFocus?.primaryCategoryId);
+  const primaryCategory = activeCategories.find((category) => category.id === weeklyFocus?.primaryCategoryId);
 
   if (balanceBonusInfo.currentCategoryCount === 4) {
     suggestions.push({
@@ -907,7 +991,7 @@ const buildRecommendedActions = ({
 };
 
 const buildLongTermQuests = (context) =>
-  LONG_TERM_QUEST_DEFINITIONS.map((quest) => {
+  LONG_TERM_QUEST_DEFINITIONS.filter((quest) => isStructureRequirementSupported(LONG_TERM_QUEST_REQUIREMENTS[quest.id])).map((quest) => {
     const progress = quest.getProgress(context);
     return {
       ...quest,
@@ -922,7 +1006,7 @@ const buildLongTermQuests = (context) =>
   });
 
 const buildLegendaryQuests = (context) =>
-  LEGENDARY_QUEST_DEFINITIONS.map((quest) => {
+  LEGENDARY_QUEST_DEFINITIONS.filter((quest) => isStructureRequirementSupported(LEGENDARY_QUEST_REQUIREMENTS[quest.id])).map((quest) => {
     const requirements = quest.getRequirements(context).map((requirement) => ({
       ...requirement,
       progressPercent: clamp((requirement.current / requirement.target) * 100, 0, 100),
@@ -939,7 +1023,7 @@ const buildLegendaryQuests = (context) =>
   });
 
 const buildUltimateQuests = (context) =>
-  ULTIMATE_QUEST_DEFINITIONS.map((quest) => {
+  ULTIMATE_QUEST_DEFINITIONS.filter((quest) => isStructureRequirementSupported(ULTIMATE_QUEST_REQUIREMENTS[quest.id])).map((quest) => {
     const requirements = quest.getRequirements(context).map((requirement) => ({
       ...requirement,
       progressPercent: clamp((requirement.current / requirement.target) * 100, 0, 100),
@@ -959,8 +1043,11 @@ const buildWeeklyChallenges = (context, weekKey) => {
   const selected = [];
   const startIndex = weekKey.split('-').join('').split('').reduce((sum, char) => sum + Number(char), 0) % WEEKLY_CHALLENGE_POOL.length;
 
-  for (let offset = 0; offset < 3; offset += 1) {
-    selected.push(WEEKLY_CHALLENGE_POOL[(startIndex + offset) % WEEKLY_CHALLENGE_POOL.length]);
+  for (let offset = 0; offset < WEEKLY_CHALLENGE_POOL.length && selected.length < Math.min(3, WEEKLY_CHALLENGE_POOL.length); offset += 1) {
+    const nextChallenge = WEEKLY_CHALLENGE_POOL[(startIndex + offset) % WEEKLY_CHALLENGE_POOL.length];
+    if (isStructureRequirementSupported(WEEKLY_CHALLENGE_REQUIREMENTS[nextChallenge.id]) && !selected.some((entry) => entry.id === nextChallenge.id)) {
+      selected.push(nextChallenge);
+    }
   }
 
   return selected.map((challenge) => {
@@ -1031,9 +1118,9 @@ const buildWeeklySummary = ({
     weeklyXp,
     sessionsLogged,
     forgePointsEarned: forgePointsEarnedThisWeek,
-    mostActiveCategories: CATEGORY_DEFINITIONS.filter((category) => mostActiveCategoryIds.includes(category.id)),
-    mostActiveProjects: PROJECT_DEFINITIONS.filter((project) => mostActiveProjectIds.includes(project.id)),
-    neglectedCategories: CATEGORY_DEFINITIONS.filter((category) => neglectedCategoryIds.includes(category.id)),
+    mostActiveCategories: activeCategories.filter((category) => mostActiveCategoryIds.includes(category.id)),
+    mostActiveProjects: activeProjects.filter((project) => mostActiveProjectIds.includes(project.id)),
+    neglectedCategories: activeCategories.filter((category) => neglectedCategoryIds.includes(category.id)),
     balancedWeekAchieved: balanceBonusInfo.events.some((event) => event.date >= weekStart),
     momentumHighlights: categoryStats
       .filter((category) => categoryMomentum[category.id].bonusPercent >= 10)
@@ -1119,7 +1206,7 @@ const buildMilestoneHighlights = ({
   }
 
   if (weeklyFocus.primaryCategoryId && todaySummary.primaryFocusSessionCount >= 1) {
-    const primary = CATEGORY_DEFINITIONS.find((category) => category.id === weeklyFocus.primaryCategoryId);
+  const primary = activeCategories.find((category) => category.id === weeklyFocus.primaryCategoryId);
     highlights.push({
       id: 'focus-followed',
       title: `${primary?.name || 'Primary focus'} followed today`,
@@ -1139,7 +1226,7 @@ const buildBuildIdentity = ({ weeklyFocus, categoryMomentum, weeklySessionsByCat
   const momentumCount = Object.values(categoryMomentum).filter((momentum) => momentum.bonusPercent >= 10).length;
 
   if (focusedShare >= 0.45 && primaryId) {
-    const category = CATEGORY_DEFINITIONS.find((entry) => entry.id === primaryId);
+  const category = activeCategories.find((entry) => entry.id === primaryId);
     return {
       name: 'Focused Builder',
       label: 'Focus profile',
@@ -1200,7 +1287,7 @@ const cloneCategoryStats = (categoryStats) =>
   }));
 
 const pickProjectForCategory = (categoryId, projectStats) =>
-  PROJECT_DEFINITIONS.filter((project) => project.categoryId === categoryId)
+      activeProjects.filter((project) => project.categoryId === categoryId)
     .map((project) => ({ project, stats: projectStats[project.id] }))
     .sort((left, right) => {
       if (left.project.rate !== right.project.rate) {
@@ -1208,7 +1295,7 @@ const pickProjectForCategory = (categoryId, projectStats) =>
       }
 
       return left.stats.sessionCount - right.stats.sessionCount;
-    })[0]?.project || PROJECT_DEFINITIONS.find((project) => project.categoryId === categoryId);
+    })[0]?.project || activeProjects.find((project) => project.categoryId === categoryId);
 
 const suggestSessionTag = (project) => project.tags?.[0] || '';
 
@@ -1688,9 +1775,9 @@ const buildRoadRecommendations = ({
   const candidates = [];
   const primaryCategoryId = weeklyFocus?.primaryCategoryId;
   const neglectedCategory = categoryStats.find((category) => categoryMomentum[category.id].sessionsLast7Days === 0);
-  const balanceTargetCategoryId = CATEGORY_DEFINITIONS.find((category) => !balanceBonusInfo.currentCategoryIds.includes(category.id))?.id;
+  const balanceTargetCategoryId = activeCategories.find((category) => !balanceBonusInfo.currentCategoryIds.includes(category.id))?.id;
 
-  PROJECT_DEFINITIONS.forEach((project) => {
+  activeProjects.forEach((project) => {
     const categoryId = project.categoryId;
     const tag = suggestSessionTag(project);
     const needsNote = Boolean(
@@ -1960,66 +2047,72 @@ const buildDailyRoadDraft = ({ road, habitsToday, weeklyFocus, categoryStats, ba
     );
   }
 
-  const missingBalanceCategoryId = CATEGORY_DEFINITIONS.find((category) => !balanceBonusInfo.currentCategoryIds.includes(category.id))?.id;
+  const missingBalanceCategoryId = activeCategories.find((category) => !balanceBonusInfo.currentCategoryIds.includes(category.id))?.id;
   if (missingBalanceCategoryId) {
     const project = pickProjectForCategory(missingBalanceCategoryId, projectStats);
-    addStep(
-      {
-        id: `balance-${project.id}`,
-        executionKind: 'session',
-        title: `${project.name} for 20 minutes`,
-        summary: 'This adds category breadth and supports the balance window.',
-        projectId: project.id,
-        projectName: project.name,
-        categoryId: missingBalanceCategoryId,
-        categoryName: getCategoryDefinition(missingBalanceCategoryId)?.name,
-        durationMinutes: 20,
-        tag: suggestSessionTag(project),
-        note: '',
-      },
-      'balance',
-    );
+    if (project) {
+      addStep(
+        {
+          id: `balance-${project.id}`,
+          executionKind: 'session',
+          title: `${project.name} for 20 minutes`,
+          summary: 'This adds category breadth and supports the balance window.',
+          projectId: project.id,
+          projectName: project.name,
+          categoryId: missingBalanceCategoryId,
+          categoryName: getCategoryDefinition(missingBalanceCategoryId)?.name,
+          durationMinutes: 20,
+          tag: suggestSessionTag(project),
+          note: '',
+        },
+        'balance',
+      );
+    }
   }
 
   if (weeklyFocus?.primaryCategoryId) {
     const focusProject = pickProjectForCategory(weeklyFocus.primaryCategoryId, projectStats);
-    addStep(
-      {
-        id: `focus-${focusProject.id}`,
-        executionKind: 'session',
-        title: `${focusProject.name} for 25 minutes`,
-        summary: 'Primary Focus gets top priority in the daily path.',
-        projectId: focusProject.id,
-        projectName: focusProject.name,
-        categoryId: focusProject.categoryId,
-        categoryName: getCategoryDefinition(focusProject.categoryId)?.name,
-        durationMinutes: 25,
-        tag: suggestSessionTag(focusProject),
-        note: '',
-      },
-      'focus',
-    );
+    if (focusProject) {
+      addStep(
+        {
+          id: `focus-${focusProject.id}`,
+          executionKind: 'session',
+          title: `${focusProject.name} for 25 minutes`,
+          summary: 'Primary Focus gets top priority in the daily path.',
+          projectId: focusProject.id,
+          projectName: focusProject.name,
+          categoryId: focusProject.categoryId,
+          categoryName: getCategoryDefinition(focusProject.categoryId)?.name,
+          durationMinutes: 25,
+          tag: suggestSessionTag(focusProject),
+          note: '',
+        },
+        'focus',
+      );
+    }
   }
 
   const topCategory = [...categoryStats].sort((left, right) => right.totalXp - left.totalXp)[0];
   if (topCategory) {
     const capstoneProject = pickProjectForCategory(topCategory.id, projectStats);
-    addStep(
-      {
-        id: `capstone-${capstoneProject.id}`,
-        executionKind: 'session',
-        title: `${capstoneProject.name} for 30 minutes`,
-        summary: 'A stronger finishing block to close the day with efficient XP.',
-        projectId: capstoneProject.id,
-        projectName: capstoneProject.name,
-        categoryId: capstoneProject.categoryId,
-        categoryName: getCategoryDefinition(capstoneProject.categoryId)?.name,
-        durationMinutes: 30,
-        tag: suggestSessionTag(capstoneProject),
-        note: '',
-      },
-      'capstone',
-    );
+    if (capstoneProject) {
+      addStep(
+        {
+          id: `capstone-${capstoneProject.id}`,
+          executionKind: 'session',
+          title: `${capstoneProject.name} for 30 minutes`,
+          summary: 'A stronger finishing block to close the day with efficient XP.',
+          projectId: capstoneProject.id,
+          projectName: capstoneProject.name,
+          categoryId: capstoneProject.categoryId,
+          categoryName: getCategoryDefinition(capstoneProject.categoryId)?.name,
+          durationMinutes: 30,
+          tag: suggestSessionTag(capstoneProject),
+          note: '',
+        },
+        'capstone',
+      );
+    }
   }
 
   return steps.slice(0, 5);
@@ -2062,7 +2155,7 @@ const buildCurrencyLedger = ({
 
   Object.entries(habitChecks).forEach(([dateKey, completedHabits]) => {
     Object.keys(completedHabits).forEach((habitId) => {
-      const habit = habitsToday.find((entry) => entry.id === habitId) || HABIT_DEFINITIONS.find((entry) => entry.id === habitId);
+      const habit = habitsToday.find((entry) => entry.id === habitId) || allConfiguredHabits.find((entry) => entry.id === habitId);
       if (habit) {
         earnedPoints += 4;
         rewardEntries.push({ id: `habit-fp-${dateKey}-${habitId}`, createdAt: completedHabits[habitId], points: 4 });
@@ -2183,8 +2276,11 @@ const buildActivityFeed = ({
   const activities = [];
 
   evaluatedSessions.slice(-8).forEach((session) => {
-    const project = PROJECT_DEFINITIONS.find((entry) => entry.id === session.projectId);
-    const category = CATEGORY_DEFINITIONS.find((entry) => entry.id === project.categoryId);
+    const project = activeProjects.find((entry) => entry.id === session.projectId);
+    const category = activeCategories.find((entry) => entry.id === project?.categoryId);
+    if (!project || !category) {
+      return;
+    }
     const bonusBits = [];
 
     if (session.focusBonusPercent) {
@@ -2223,7 +2319,7 @@ const buildActivityFeed = ({
 
   Object.entries(habitChecks).forEach(([dateKey, habits]) => {
     Object.entries(habits).forEach(([habitId, completedAt]) => {
-      const habit = HABIT_DEFINITIONS.find((entry) => entry.id === habitId);
+      const habit = allConfiguredHabits.find((entry) => entry.id === habitId);
       if (habit) {
         activities.push({
           id: `habit-${dateKey}-${habitId}`,
@@ -2344,6 +2440,7 @@ const buildActivityFeed = ({
 };
 
 export const deriveAppState = (state) => {
+  applyActiveStructure(state.profile);
   const todayKey = getTodayKey();
   const weekStart = subtractDays(todayKey, 6);
   const currentWeekKey = getWeekKey(todayKey);
@@ -2376,8 +2473,8 @@ export const deriveAppState = (state) => {
     }));
   });
 
-  const categoryStats = CATEGORY_DEFINITIONS.map((category) => {
-    const projects = category.projectIds.map((projectId) => projectStats[projectId]);
+  const categoryStats = activeCategories.map((category) => {
+    const projects = getActiveProjectsByCategory(category.id).map((project) => projectStats[project.id]).filter(Boolean);
     const totalXp = projects.reduce((sum, project) => sum + project.totalXp, 0);
     const totalMinutes = projects.reduce((sum, project) => sum + project.totalMinutes, 0);
     const sessionCount = projects.reduce((sum, project) => sum + project.sessionCount, 0);
@@ -2407,7 +2504,7 @@ export const deriveAppState = (state) => {
   const activeStreakDays = getActiveDateStreak(uniqueSessionDates, todayKey);
   const activeStreakBonusPercent = clamp((Math.max(activeStreakDays, 1) - 1) * 5, 0, 50) + (activeStreakDays ? perkState.streakBonusExtraPercent : 0);
 
-  const categoryMomentum = CATEGORY_DEFINITIONS.reduce((accumulator, category) => {
+  const categoryMomentum = activeCategories.reduce((accumulator, category) => {
     const categorySessions = evaluatedSessions.filter((session) => getProjectDefinition(session.projectId).categoryId === category.id && session.date >= weekStart && session.date <= todayKey);
     const sessionsLast4Days = categorySessions.filter((session) => session.date >= subtractDays(todayKey, 3)).length;
     const sessionsLast7Days = categorySessions.length;
@@ -2431,7 +2528,7 @@ export const deriveAppState = (state) => {
     return accumulator;
   }, {});
 
-  const categoryStreaks = CATEGORY_DEFINITIONS.reduce((accumulator, category) => {
+  const categoryStreaks = activeCategories.reduce((accumulator, category) => {
     const categoryDates = evaluatedSessions
       .filter((session) => getProjectDefinition(session.projectId).categoryId === category.id)
       .map((session) => session.date);
@@ -2741,6 +2838,12 @@ export const deriveAppState = (state) => {
     todayKey,
     projectMap,
     categoryMap,
+    structure: {
+      categories: activeCategories,
+      projects: activeProjects,
+      habits: activeHabits,
+      profile: state.profile,
+    },
     evaluatedSessions,
     projectStats,
     categoryStats,
@@ -2842,6 +2945,8 @@ export const updateSessionRecord = (existingSession, updates) => ({
   focusBonusPercent: updates.focusBonusPercent ?? existingSession.focusBonusPercent ?? 0,
 });
 
-export const getProjectDefinition = (projectId) => PROJECT_DEFINITIONS.find((project) => project.id === projectId);
+export const getProjectDefinition = (projectId) => activeProjects.find((project) => project.id === projectId);
 
-export const getCategoryDefinition = (categoryId) => CATEGORY_DEFINITIONS.find((category) => category.id === categoryId);
+export const getCategoryDefinition = (categoryId) => activeCategories.find((category) => category.id === categoryId);
+
+export const getAvailableDailyQuestPool = () => QUEST_POOL.filter((quest) => isStructureRequirementSupported(DAILY_QUEST_REQUIREMENTS[quest.id]));

@@ -3,12 +3,14 @@ import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, usePa
 import { DailyRoadPage, OverviewPage, PerksPage, ProjectsPage, QuestJournalPage, RoadPage, SettingsPage, StatsPage } from './components/AppSections';
 import { ProjectDetail } from './components/ProjectDetail';
 import { SessionModal } from './components/SessionModal';
+import { SetupWizardModal } from './components/StructureManager';
 import { TutorialModal } from './components/TutorialModal';
-import { PROJECT_DEFINITIONS, QUEST_POOL } from './data/seed';
+import { BUILT_IN_PRESETS, syncCategoryProjectIds } from './data/seed';
 import {
   PERK_DEFINITIONS,
   createSessionRecord,
   deriveAppState,
+  getAvailableDailyQuestPool,
   getProjectDefinition,
   getTodayKey,
   getWeekKey,
@@ -42,6 +44,7 @@ const PAGE_META = [
 function AppLayout({ children, derived, onOpenSessionModal }) {
   const location = useLocation();
   const currentMeta = PAGE_META.find((entry) => entry.match.test(location.pathname)) || PAGE_META[0];
+  const profile = derived.structure?.profile;
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
@@ -65,7 +68,7 @@ function AppLayout({ children, derived, onOpenSessionModal }) {
           <span className="brand-link__mark">TF</span>
           <div>
             <strong>The Forge</strong>
-            <span>Personal progression system</span>
+            <span>{profile?.displayName ? `${profile.displayName}'s progression system` : 'Personal progression system'}</span>
           </div>
         </Link>
 
@@ -79,7 +82,7 @@ function AppLayout({ children, derived, onOpenSessionModal }) {
 
         <div className="sidebar-summary">
           <div className="subpanel subpanel--compact">
-            <strong>Mylo Level</strong>
+            <strong>{profile?.levelLabel || 'Forge Level'}</strong>
             <p>Level {derived.overallLevelInfo.level} | {derived.overallXp} XP</p>
           </div>
           <div className="subpanel subpanel--compact">
@@ -118,7 +121,7 @@ function AppLayout({ children, derived, onOpenSessionModal }) {
 function ProjectRoute({ derived, onOpenSessionModal, onEditSession, onDeleteSession }) {
   const navigate = useNavigate();
   const { projectId } = useParams();
-  const project = PROJECT_DEFINITIONS.find((entry) => entry.id === projectId);
+  const project = derived.structure?.projects?.find((entry) => entry.id === projectId);
 
   if (!project) {
     return <Navigate to="/" replace />;
@@ -129,6 +132,7 @@ function ProjectRoute({ derived, onOpenSessionModal, onEditSession, onDeleteSess
       <ProjectDetail
         project={project}
         stats={derived.projectStats[project.id]}
+        levelLabel={derived.structure?.profile?.levelLabel || 'Forge Level'}
         onBack={() => navigate('/projects')}
         onOpenSessionModal={(targetProjectId) => onOpenSessionModal(targetProjectId)}
         onEditSession={onEditSession}
@@ -150,10 +154,10 @@ function App() {
   }, [appState]);
 
   useEffect(() => {
-    if (!appState.ui?.tutorialDismissed) {
+    if (appState.profile?.isConfigured && !appState.ui?.tutorialDismissed) {
       setIsTutorialOpen(true);
     }
-  }, [appState.ui]);
+  }, [appState.profile?.isConfigured, appState.ui]);
 
   useEffect(() => {
     if (!xpFeedback) {
@@ -165,6 +169,30 @@ function App() {
   }, [xpFeedback]);
 
   const derived = useMemo(() => deriveAppState(appState), [appState]);
+  const currentProjects = derived.structure?.projects || [];
+  const currentCategories = derived.structure?.categories || [];
+  const currentHabits = appState.profile?.habits || [];
+  const updateProfile = (updater) => {
+    setAppState((current) => {
+      const nextProfile = updater(current.profile);
+      return {
+        ...current,
+        profile: {
+          ...nextProfile,
+          categories: syncCategoryProjectIds(nextProfile.categories || [], nextProfile.projects || []),
+          updatedAt: new Date().toISOString(),
+        },
+        weeklyFocus: {
+          primaryCategoryId:
+            nextProfile.categories?.some((category) => category.id === current.weeklyFocus?.primaryCategoryId)
+              ? current.weeklyFocus.primaryCategoryId
+              : '',
+          secondaryCategoryIds: (current.weeklyFocus?.secondaryCategoryIds || []).filter((categoryId) =>
+            nextProfile.categories?.some((category) => category.id === categoryId)),
+        },
+      };
+    });
+  };
   const pushFeedback = (label, note) =>
     setXpFeedback({
       label,
@@ -232,6 +260,10 @@ function App() {
   };
 
   const openSessionModal = (defaultProjectId = null) => {
+    if (!currentProjects.length) {
+      window.alert('Add at least one project in Settings before logging sessions.');
+      return;
+    }
     setSessionModalState({ mode: 'create', defaultProjectId, initialValues: null });
   };
 
@@ -273,8 +305,133 @@ function App() {
     }));
   };
 
+  const handleCompleteSetup = (profileDraft) => {
+    setAppState((current) => ({
+      ...current,
+      profile: {
+        ...profileDraft,
+        categories: syncCategoryProjectIds(profileDraft.categories || [], profileDraft.projects || []),
+        isConfigured: true,
+        updatedAt: new Date().toISOString(),
+      },
+      ui: {
+        ...current.ui,
+        ...profileDraft.starterPreferences,
+        tutorialDismissed: false,
+      },
+      weeklyFocus: {
+        primaryCategoryId: '',
+        secondaryCategoryIds: [],
+      },
+    }));
+    setIsTutorialOpen(true);
+    navigate('/');
+  };
+
+  const handleUpdateCategory = (categoryId, patch) => {
+    updateProfile((profile) => ({
+      ...profile,
+      categories: profile.categories.map((category) => (category.id === categoryId ? { ...category, ...patch } : category)),
+    }));
+  };
+
+  const handleCreateCategory = (category) => {
+    if (currentCategories.some((entry) => entry.id === category.id)) {
+      window.alert('That category id already exists. Try a different name.');
+      return;
+    }
+    updateProfile((profile) => ({
+      ...profile,
+      categories: [...profile.categories, { ...category, projectIds: [] }],
+    }));
+  };
+
+  const handleDeleteCategory = (categoryId) => {
+    const hasProjects = currentProjects.some((project) => project.categoryId === categoryId);
+    const categoryProjectIds = currentProjects.filter((project) => project.categoryId === categoryId).map((project) => project.id);
+    const hasLoggedSessions = appState.sessions.some((session) => categoryProjectIds.includes(session.projectId));
+    if (hasProjects || hasLoggedSessions) {
+      window.alert('Remove or move projects first. Categories with linked project history cannot be deleted cleanly yet.');
+      return;
+    }
+    updateProfile((profile) => ({
+      ...profile,
+      categories: profile.categories.filter((category) => category.id !== categoryId),
+    }));
+  };
+
+  const handleUpdateProject = (projectId, patch) => {
+    updateProfile((profile) => ({
+      ...profile,
+      projects: profile.projects.map((project) => (project.id === projectId ? { ...project, ...patch } : project)),
+    }));
+  };
+
+  const handleCreateProject = (project) => {
+    if (currentProjects.some((entry) => entry.id === project.id)) {
+      window.alert('That project id already exists. Try a different name.');
+      return;
+    }
+    updateProfile((profile) => ({
+      ...profile,
+      projects: [...profile.projects, project],
+    }));
+  };
+
+  const handleDeleteProject = (projectId) => {
+    if (appState.sessions.some((session) => session.projectId === projectId)) {
+      window.alert('Projects with logged sessions cannot be deleted yet. Rename or keep them for history integrity.');
+      return;
+    }
+    updateProfile((profile) => ({
+      ...profile,
+      projects: profile.projects.filter((project) => project.id !== projectId),
+    }));
+  };
+
+  const handleUpdateHabit = (habitId, patch) => {
+    updateProfile((profile) => ({
+      ...profile,
+      habits: profile.habits.map((habit) => (habit.id === habitId ? { ...habit, ...patch } : habit)),
+    }));
+  };
+
+  const handleCreateHabit = (habit) => {
+    if (currentHabits.some((entry) => entry.id === habit.id)) {
+      window.alert('That habit id already exists. Try a different name.');
+      return;
+    }
+    updateProfile((profile) => ({
+      ...profile,
+      habits: [...profile.habits, habit],
+    }));
+  };
+
+  const handleDeleteHabit = (habitId) => {
+    const hasHistory = Object.values(appState.habitChecks || {}).some((day) => day?.[habitId]);
+    if (hasHistory) {
+      window.alert('Habits with logged history should be disabled instead of deleted so reward history stays accurate.');
+      return;
+    }
+    updateProfile((profile) => ({
+      ...profile,
+      habits: profile.habits.filter((habit) => habit.id !== habitId),
+    }));
+  };
+
+  const handleToggleHabitEnabled = (habitId) => {
+    updateProfile((profile) => ({
+      ...profile,
+      habits: profile.habits.map((habit) => (habit.id === habitId ? { ...habit, enabled: habit.enabled === false ? true : false } : habit)),
+    }));
+  };
+
   const handleSaveSession = (payload) => {
     const project = getProjectDefinition(payload.projectId);
+    if (!project) {
+      window.alert('That project no longer exists in the current setup. Choose a valid project and try again.');
+      return;
+    }
     const focusBonusPercent = getWeeklyFocusBonusPercent(project.categoryId, appState.weeklyFocus);
     let targetSessionId = sessionModalState?.sessionId;
     let nextState;
@@ -544,7 +701,7 @@ function App() {
 
     const currentQuestIds = derived.dailyQuests.map((quest) => quest.id);
     const currentQuestId = derived.dailyQuests.find((quest) => quest.slotIndex === slotIndex)?.id;
-    const replacement = QUEST_POOL.find((quest) => !currentQuestIds.includes(quest.id) && quest.id !== currentQuestId);
+    const replacement = getAvailableDailyQuestPool().find((quest) => !currentQuestIds.includes(quest.id) && quest.id !== currentQuestId);
     if (!replacement) {
       return;
     }
@@ -732,7 +889,7 @@ function App() {
 
     setAppState(resetState());
     setSessionModalState(null);
-    setIsTutorialOpen(true);
+    setIsTutorialOpen(false);
     navigate('/');
   };
 
@@ -863,12 +1020,7 @@ function App() {
           path="/projects"
           element={
             <AppLayout derived={derived} onOpenSessionModal={() => openSessionModal()}>
-              <ProjectsPage
-                derived={derived}
-                projects={PROJECT_DEFINITIONS}
-                onSelectProject={(projectId) => navigate(`/projects/${projectId}`)}
-                onOpenSessionModal={() => openSessionModal()}
-              />
+              <ProjectsPage derived={derived} projects={currentProjects} onSelectProject={(projectId) => navigate(`/projects/${projectId}`)} onOpenSessionModal={() => openSessionModal()} />
             </AppLayout>
           }
         />
@@ -899,12 +1051,24 @@ function App() {
             <AppLayout derived={derived} onOpenSessionModal={() => openSessionModal()}>
               <SettingsPage
                 uiState={appState.ui}
+                profile={appState.profile}
+                presets={BUILT_IN_PRESETS}
                 onExportData={handleExportData}
                 onImportData={handleImportData}
                 onResetProgress={handleResetProgress}
                 onOpenTutorial={() => setIsTutorialOpen(true)}
                 onUpdatePreference={handleUpdatePreference}
                 onToggleQuestSection={handleToggleQuestSection}
+                onUpdateCategory={handleUpdateCategory}
+                onCreateCategory={handleCreateCategory}
+                onDeleteCategory={handleDeleteCategory}
+                onUpdateProject={handleUpdateProject}
+                onCreateProject={handleCreateProject}
+                onDeleteProject={handleDeleteProject}
+                onUpdateHabit={handleUpdateHabit}
+                onCreateHabit={handleCreateHabit}
+                onDeleteHabit={handleDeleteHabit}
+                onToggleHabitEnabled={handleToggleHabitEnabled}
               />
             </AppLayout>
           }
@@ -928,11 +1092,13 @@ function App() {
         isEditing={sessionModalState?.mode === 'edit'}
         onClose={() => setSessionModalState(null)}
         onSubmit={handleSaveSession}
-        projects={PROJECT_DEFINITIONS}
+        projects={currentProjects}
+        categories={currentCategories}
         defaultProjectId={sessionModalState?.defaultProjectId}
         initialValues={sessionModalState?.initialValues}
       />
 
+      <SetupWizardModal isOpen={!appState.profile?.isConfigured} presets={BUILT_IN_PRESETS} onComplete={handleCompleteSetup} />
       <TutorialModal isOpen={isTutorialOpen} onClose={closeTutorial} />
     </>
   );

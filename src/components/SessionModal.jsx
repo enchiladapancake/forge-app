@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CATEGORY_DEFINITIONS } from '../data/seed';
 import { getTodayKey } from '../utils/progression';
 
-export function SessionModal({ isOpen, isEditing = false, onClose, onSubmit, projects, defaultProjectId, initialValues }) {
+export function SessionModal({ isOpen, isEditing = false, onClose, onSubmit, projects, categories, defaultProjectId, initialValues }) {
   const initialProject = useMemo(() => initialValues?.projectId || defaultProjectId || projects[0]?.id || '', [defaultProjectId, initialValues, projects]);
   const [projectId, setProjectId] = useState(initialProject);
   const [durationMinutes, setDurationMinutes] = useState(30);
@@ -39,10 +38,10 @@ export function SessionModal({ isOpen, isEditing = false, onClose, onSubmit, pro
 
   const selectedProject = projects.find((project) => project.id === projectId);
   const availableTags = selectedProject?.tags || [];
-  const projectsByCategory = CATEGORY_DEFINITIONS.map((category) => ({
+  const projectsByCategory = categories.map((category) => ({
     ...category,
     projects: projects.filter((project) => project.categoryId === category.id),
-  }));
+  })).filter((category) => category.projects.length);
 
   const handleSubmit = (event) => {
     event.preventDefault();

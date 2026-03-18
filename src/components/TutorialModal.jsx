@@ -6,11 +6,19 @@ export function TutorialModal({ isOpen, onClose }) {
   const sections = [
     {
       title: 'What The Forge Is',
-      body: 'The Forge turns real-life effort into visible progression. Sessions are still the core source of truth, and they feed project XP, category growth, quests, streaks, and your overall Mylo Level.',
+      body: 'The Forge turns real-life effort into visible progression. Sessions are still the core source of truth, and they feed project XP, category growth, quests, streaks, and your overall account level.',
     },
     {
       title: 'Navigation Structure',
       body: 'Use Dashboard for the current overview, The Road for the best next action, Daily Road for a full optimized plan for the day, Quest Journal for all quest tiers, Projects for categories and timelines, Progress for stats and profile insight, Perks for the Forge Points economy, and Settings for help and local preferences.',
+    },
+    {
+      title: 'Presets and Templates',
+      body: 'The Forge now supports starter presets. The current Mylo setup is preserved as a first-class built-in template, and new users can begin from that, Student, Balanced Growth, Creative, Fitness / Discipline, or a Blank setup.',
+    },
+    {
+      title: 'Profile and Structure',
+      body: 'Your save now separates progression from structure. Sessions, XP, quests, perks, and rewards stay in save data, while categories, projects, habits, preset origin, and display profile details live in a local profile config.',
     },
     {
       title: 'Installable App Mode',
@@ -58,7 +66,11 @@ export function TutorialModal({ isOpen, onClose }) {
     },
     {
       title: 'Settings and Local Save Data',
-      body: 'Everything stays local to this device. Settings includes Export Data, Import Data, Reset Progress, Help, confirmation preferences, Road behavior preferences, feedback style, and quest-tier collapse preferences.',
+      body: 'Everything stays local to this device. Settings now includes Export Data, Import Data, Reset Progress, Help, confirmation preferences, Road behavior preferences, quest-tier layout preferences, preset visibility, and full category/project/habit management.',
+    },
+    {
+      title: 'First-Run Setup',
+      body: 'Brand-new users now get a setup flow to choose a preset, set a display name, and optionally tweak categories, projects, or habits before starting. Existing Mylo saves are migrated automatically and preserved without forcing setup again.',
     },
     {
       title: 'Offline and Resilience',

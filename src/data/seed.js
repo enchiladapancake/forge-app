@@ -65,6 +65,195 @@ export const HABIT_DEFINITIONS = [
   { id: 'bass-practice', name: 'Bass Practice', rewardXp: 40 },
 ];
 
+const clone = (value) => JSON.parse(JSON.stringify(value));
+
+const createPreset = ({
+  id,
+  name,
+  description,
+  profileName = 'Forge Runner',
+  levelLabel = 'Forge Level',
+  categories,
+  projects,
+  habits,
+  starterPreferences = {},
+}) => ({
+  id,
+  name,
+  description,
+  profileName,
+  levelLabel,
+  categories: clone(categories),
+  projects: clone(projects),
+  habits: clone(habits),
+  starterPreferences,
+});
+
+export const BUILT_IN_PRESETS = [
+  createPreset({
+    id: 'mylo-personal',
+    name: 'Mylo Personal Setup',
+    description: 'The original Mylo structure with Music, Coding, Health, Academics, Language, and Strategy exactly preserved.',
+    profileName: 'Mylo',
+    levelLabel: 'Mylo Level',
+    categories: CATEGORY_DEFINITIONS,
+    projects: PROJECT_DEFINITIONS,
+    habits: HABIT_DEFINITIONS,
+    starterPreferences: {
+      feedbackMode: 'full',
+      roadAutoOpenPrefill: true,
+    },
+  }),
+  createPreset({
+    id: 'student-growth',
+    name: 'Student',
+    description: 'A cleaner starter layout for school, coding, language, health, and strategy growth.',
+    profileName: 'Student Forge',
+    levelLabel: 'Forge Level',
+    categories: CATEGORY_DEFINITIONS.filter((category) => ['academics', 'coding', 'language', 'health', 'strategy'].includes(category.id)).map((category) => ({
+      ...category,
+      projectIds: category.projectIds.filter((projectId) => ['school', 'python', 'cpp', 'italian', 'exercise', 'nutrition', 'chess'].includes(projectId)),
+    })),
+    projects: PROJECT_DEFINITIONS.filter((project) => ['school', 'python', 'cpp', 'italian', 'exercise', 'nutrition', 'chess'].includes(project.id)),
+    habits: HABIT_DEFINITIONS.filter((habit) => ['read', 'stretch', 'chess-puzzles'].includes(habit.id)),
+  }),
+  createPreset({
+    id: 'balanced-growth',
+    name: 'Balanced Growth',
+    description: 'A broad all-around setup built for balance, consistency, and multi-lane progression.',
+    profileName: 'Balanced Forge',
+    levelLabel: 'Forge Level',
+    categories: CATEGORY_DEFINITIONS,
+    projects: PROJECT_DEFINITIONS.filter((project) => ['bass', 'python', 'exercise', 'school', 'italian', 'chess'].includes(project.id)),
+    habits: HABIT_DEFINITIONS.filter((habit) => ['read', 'stretch', 'chess-puzzles', 'piano-practice'].includes(habit.id)),
+  }),
+  createPreset({
+    id: 'creative-builder',
+    name: 'Creative / Music / Coding',
+    description: 'A creative-heavy mix for instruments, theory, and technical building work.',
+    profileName: 'Creative Forge',
+    levelLabel: 'Forge Level',
+    categories: CATEGORY_DEFINITIONS.filter((category) => ['music', 'coding', 'health'].includes(category.id)).map((category) => ({
+      ...category,
+      projectIds: category.projectIds.filter((projectId) =>
+        ['bass', 'violin', 'piano', 'music-theory', 'python', 'cpp', 'exercise'].includes(projectId)),
+    })),
+    projects: PROJECT_DEFINITIONS.filter((project) =>
+      ['bass', 'violin', 'piano', 'music-theory', 'python', 'cpp', 'exercise'].includes(project.id)),
+    habits: HABIT_DEFINITIONS.filter((habit) => ['read', 'stretch', 'piano-practice', 'bass-practice'].includes(habit.id)),
+  }),
+  createPreset({
+    id: 'fitness-discipline',
+    name: 'Fitness / Discipline',
+    description: 'A tighter setup focused on health, routines, and disciplined daily upkeep.',
+    profileName: 'Discipline Forge',
+    levelLabel: 'Forge Level',
+    categories: CATEGORY_DEFINITIONS.filter((category) => ['health', 'strategy', 'language', 'coding'].includes(category.id)).map((category) => ({
+      ...category,
+      projectIds: category.projectIds.filter((projectId) => ['nutrition', 'exercise', 'chess', 'italian', 'python'].includes(projectId)),
+    })),
+    projects: PROJECT_DEFINITIONS.filter((project) => ['nutrition', 'exercise', 'chess', 'italian', 'python'].includes(project.id)),
+    habits: HABIT_DEFINITIONS.filter((habit) => ['read', 'stretch', 'chess-puzzles'].includes(habit.id)),
+  }),
+  createPreset({
+    id: 'blank-canvas',
+    name: 'Blank / Build Your Own',
+    description: 'Start with a clean slate and build categories, projects, and habits from scratch.',
+    profileName: 'New Forge',
+    levelLabel: 'Forge Level',
+    categories: [],
+    projects: [],
+    habits: [],
+  }),
+];
+
+export const getPresetById = (presetId) => BUILT_IN_PRESETS.find((preset) => preset.id === presetId) || BUILT_IN_PRESETS[0];
+
+export const syncCategoryProjectIds = (categories, projects) =>
+  categories.map((category) => ({
+    ...category,
+    projectIds: projects.filter((project) => project.categoryId === category.id).map((project) => project.id),
+  }));
+
+export const createProfileFromPreset = (presetId, overrides = {}) => {
+  const preset = getPresetById(presetId);
+  const categories = clone(overrides.categories || preset.categories);
+  const projects = clone(overrides.projects || preset.projects);
+  const habits = clone(overrides.habits || preset.habits);
+
+  return {
+    isConfigured: true,
+    presetId: preset.id,
+    presetName: preset.name,
+    displayName: overrides.displayName || preset.profileName,
+    levelLabel: overrides.levelLabel || preset.levelLabel,
+    categories: syncCategoryProjectIds(categories, projects),
+    projects,
+    habits,
+    createdAt: overrides.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+};
+
+export const createLegacyMyloProfile = () =>
+  createProfileFromPreset('mylo-personal', {
+    displayName: 'Mylo',
+    levelLabel: 'Mylo Level',
+  });
+
+const createBaseUiState = () => ({
+  tutorialDismissed: false,
+  feedbackMode: 'full',
+  confirmDestructiveActions: true,
+  roadAutoOpenPrefill: true,
+  questSections: {
+    daily: true,
+    habits: true,
+    weekly: true,
+    longTerm: true,
+    legendary: true,
+    ultimate: true,
+  },
+});
+
+export const createFreshAppState = () => ({
+  profile: {
+    isConfigured: false,
+    presetId: '',
+    presetName: '',
+    displayName: '',
+    levelLabel: 'Forge Level',
+    categories: [],
+    projects: [],
+    habits: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  sessions: [],
+  questClaims: {},
+  weeklyChallengeClaims: {},
+  longTermQuestClaims: {},
+  legendaryQuestClaims: {},
+  milestoneClaims: {},
+  habitChecks: {},
+  dailyQuestRerolls: {},
+  dailyQuestOverrides: {},
+  roadRerolls: {},
+  roadDismissals: {},
+  dailyRoadPlans: {},
+  dailyRoadRerolls: {},
+  roadActionCounts: {},
+  roadBonusClaims: {},
+  dailyRoadCompletionClaims: {},
+  ultimateQuestClaims: {},
+  ui: createBaseUiState(),
+  purchasedPerks: {},
+  weeklyFocus: {
+    primaryCategoryId: '',
+    secondaryCategoryIds: [],
+  },
+});
+
 export const QUEST_POOL = [
   {
     id: 'log-one-session',
@@ -373,41 +562,4 @@ export const QUEST_POOL = [
   },
 ];
 
-export const DEFAULT_APP_STATE = {
-  sessions: [],
-  questClaims: {},
-  weeklyChallengeClaims: {},
-  longTermQuestClaims: {},
-  legendaryQuestClaims: {},
-  milestoneClaims: {},
-  habitChecks: {},
-  dailyQuestRerolls: {},
-  dailyQuestOverrides: {},
-  roadRerolls: {},
-  roadDismissals: {},
-  dailyRoadPlans: {},
-  dailyRoadRerolls: {},
-  roadActionCounts: {},
-  roadBonusClaims: {},
-  dailyRoadCompletionClaims: {},
-  ultimateQuestClaims: {},
-  ui: {
-    tutorialDismissed: false,
-    feedbackMode: 'full',
-    confirmDestructiveActions: true,
-    roadAutoOpenPrefill: true,
-    questSections: {
-      daily: true,
-      habits: true,
-      weekly: true,
-      longTerm: true,
-      legendary: true,
-      ultimate: true,
-    },
-  },
-  purchasedPerks: {},
-  weeklyFocus: {
-    primaryCategoryId: '',
-    secondaryCategoryIds: [],
-  },
-};
+export const DEFAULT_APP_STATE = createFreshAppState();
